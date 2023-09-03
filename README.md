@@ -5,7 +5,7 @@ This repository is the PyTorch source code implementation of
 to train and evaluate the text-based ReID model on the [RSTPReid](
 https://zheng-lab.cecs.anu.edu.au/Project/project_reid.html) dataset.
 
-<img src="https://github.com/honestws/TextEdgeReID/blob/master/image/illustration.svg"/><br/>  
+<img src="https://github.com/honestws/TextEdgeReID/blob/master/illustrate.svg"/><br/>  
 
 ### Requirements
 

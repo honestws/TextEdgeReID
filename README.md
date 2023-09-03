@@ -1,11 +1,14 @@
 ![Python 3.8](https://img.shields.io/badge/python-3.8-green.svg)
 # EDiffusion: Edge-Federated Person Re-Identification by Stable Diffusion
+<div align="center">
+<img src=./illustrate.svg width=85% />
+</div>
 This repository is the PyTorch source code implementation of 
 [EDiffusion: Edge-Federated Person Re-Identification by Stable Diffusion]() and is currently being reviewed at JSAC. In the following is an instruction to use the code
 to train and evaluate the text-based ReID model on the [RSTPReid](
 https://github.com/NjtechCVLab/RSTPReid-Dataset) dataset.
 
-<img src="https://github.com/honestws/TextEdgeReID/blob/master/illustrate.svg"/><br/>  
+[//]: # (<img src="https://github.com/honestws/TextEdgeReID/blob/master/illustrate.svg"/><br/>  )
 
 [//]: # (### Requirements)
 

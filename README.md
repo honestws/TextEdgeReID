@@ -4,7 +4,8 @@
 <img src=./illustrate.svg width=85% />
 </div>
 This repository is the PyTorch source code implementation of 
-[EDiffusion: Edge-Federated Person Re-Identification by Stable Diffusion]() and is currently being reviewed at JSAC. In the following is an instruction to use the code
+[EDiffusion: Edge-Federated Person Re-Identification by Stable Diffusion]() and is currently being reviewed at JSAC. 
+In the following is an instruction to use the code
 to train and evaluate the text-based ReID model on the [RSTPReid](
 https://github.com/NjtechCVLab/RSTPReid-Dataset) dataset. 
 

@@ -38,7 +38,7 @@ if __name__ == '__main__':
 
     clip_model.train()
     for e in range(CFG.epochs):
-        number_cls = plain_train_loader.number_cls
+        number_cls = train_loader.number_cls
         pbar = tqdm(enumerate(train_loader), total=num_batch)
         for n_iter, (imgs, pids, captions) in pbar:
             imgs = imgs.to(CFG.device)

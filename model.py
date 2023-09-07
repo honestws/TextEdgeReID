@@ -97,4 +97,4 @@ class CLIPModel(nn.Module):
         pair_loss = (images_loss + texts_loss) / 2.0  # shape: (batch_size)
 
         supc_loss = self.supcon(text_embeddings, image_embeddings, labels, labels)
-        return pair_loss.mean(), supc_loss
+        return pair_loss.mean(), supc_loss, triplet_loss

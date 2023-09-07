@@ -3,7 +3,6 @@ import torch
 import clip
 from tqdm import tqdm
 from config import CFG
-from torch.cuda import amp
 from dataset import create_dataloader
 from model import CLIPModel
 from parsejson import dataparse
@@ -43,8 +42,7 @@ if __name__ == '__main__':
         for n_iter, (imgs, pids, captions) in pbar:
             imgs = imgs.to(CFG.device)
             txts = clip.tokenize(captions, truncate=True).to(CFG.device)
-            with amp.autocast():
-                loss = clip_model(imgs, txts)
+            ploss, sloss, tloss = clip_model(imgs, txts, pids)
             pbar.set_description("Epoch %d Loss: %.2f" % (e, loss))
             optimizer.zero_grad()
             loss.backward()

@@ -29,12 +29,17 @@ if __name__ == '__main__':
     triplet_train_loader, plain_train_loader, test_loader = \
         create_dataloader(CFG, train_dict, test_dict, transform)
 
-    num_batch = len(plain_train_loader)
+    if CFG.triplet:
+        train_loader = triplet_train_loader
+    else:
+        train_loader = plain_train_loader
+
+    num_batch = len(train_loader)
 
     clip_model.train()
     for e in range(CFG.epochs):
         number_cls = plain_train_loader.number_cls
-        pbar = tqdm(enumerate(plain_train_loader), total=len(plain_train_loader))
+        pbar = tqdm(enumerate(train_loader), total=num_batch)
         for n_iter, (imgs, pids, captions) in pbar:
             imgs = imgs.to(CFG.device)
             txts = clip.tokenize(captions, truncate=True).to(CFG.device)

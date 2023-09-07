@@ -5,6 +5,7 @@ class CFG(object):
     dataset = 'RSTPReid' # 'CUHK-PEDES', 'ICFG-PDES', 'RSTPReid'
     proj_path = '/home/honestws/codes/TextEdgeReID/'
     input_size = [256, 128]
+    triplet = True
     stride_size = [16, 16]
     batch_size = 16
     num_instances = 2

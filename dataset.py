@@ -144,7 +144,7 @@ def create_dataloader(CFG, train_dict, test_dict, transform):
     dataset = __factory[CFG.dataset](train_dict, test_dict)
     train_set = ImageTextDataset(dataset.train, transform)
     triplet_train_loader = DataLoader(
-        train_set, batch_size=CFG.batch_size,
+        train_set, batch_size=CFG.batch_size, shuffle=True,
         sampler=RandomIdentitySampler(dataset.train, CFG.batch_size, CFG.num_instances),
         num_workers=CFG.num_workers, collate_fn=collate_fn
     )

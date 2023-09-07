@@ -148,9 +148,11 @@ def create_dataloader(CFG, train_dict, test_dict, transform):
         sampler=RandomIdentitySampler(dataset.train, CFG.batch_size, CFG.num_instances),
         num_workers=CFG.num_workers, collate_fn=collate_fn
     )
+    setattr(triplet_train_loader, 'number_cls', train_set.number_cls)
     plain_train_loader = DataLoader(train_set, batch_size=CFG.batch_size,
                                     shuffle=True, num_workers=CFG.num_workers,
                                     collate_fn=collate_fn)
+    setattr(plain_train_loader, 'number_cls', train_set.number_cls)
     val_set = ImageTextDataset(dataset.test, transform)
     test_loader = DataLoader(
         val_set, batch_size=CFG.batch_size, shuffle=False, num_workers=CFG.num_workers, collate_fn=collate_fn

@@ -17,7 +17,7 @@ class CFG(object):
     weight_decay = 1e-4
     patience = 1
     factor = 0.8
-    epochs = 100
+    epochs = 15
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     temperature = 1.0
     projection_dim = 256

@@ -31,14 +31,17 @@ if __name__ == '__main__':
 
     num_batch = len(plain_train_loader)
 
+    clip_model.train()
     for e in range(CFG.epochs):
-        pbar = tqdm(enumerate(plain_train_loader))
+        number_cls = plain_train_loader.number_cls
+        pbar = tqdm(enumerate(plain_train_loader), total=len(plain_train_loader))
         for n_iter, (imgs, pids, captions) in pbar:
             imgs = imgs.to(CFG.device)
-            txts = clip.tokenize(captions).to(CFG.device)
+            txts = clip.tokenize(captions, truncate=True).to(CFG.device)
             with amp.autocast():
                 loss = clip_model(imgs, txts)
-            pbar.set_description("Epoch %d Loss: %.2f [%d/%d]" % (e, loss, n_iter, num_batch))
+            pbar.set_description("Epoch %d Loss: %.2f" % (e, loss))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+

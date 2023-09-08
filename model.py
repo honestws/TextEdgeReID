@@ -206,6 +206,10 @@ class CLIPModel(nn.Module):
                            projection_dim=CFG.projection_dim,
                            dropout=CFG.dropout)
         self.temperature = CFG.temperature
+        if CFG.triplet:
+            self.use_triplet = True
+        else:
+            self.use_triplet = False
         self.supcon = SupConLoss(CFG.device)
         self.triplet = TripletLoss()
 
@@ -232,7 +236,10 @@ class CLIPModel(nn.Module):
         supc_loss = (self.supcon(text_features, image_features, labels, labels) +
                     self.supcon(image_features, text_features, labels, labels))/2
 
-        triplet_loss = (self.triplet(text_features, labels)[0] +
-                        self.triplet(image_features, labels)[0])/2
+        if self.use_triplet:
+            triplet_loss = (self.triplet(text_features, labels)[0] +
+                            self.triplet(image_features, labels)[0])/2
+        else:
+            triplet_loss = 0
 
         return pair_loss.mean(), supc_loss, triplet_loss

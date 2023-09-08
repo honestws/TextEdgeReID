@@ -64,7 +64,7 @@ class CUHKPEDES(object):
         for item in dictionary:
             pid_container.add(item['id'])
         pid2label = {pid: label for label, pid in enumerate(pid_container)}
-        self.number_cls = len(pid_container)
+        if relabel: self.number_cls = len(pid_container)
 
         for item in dictionary:
             pid = item['id']
@@ -93,7 +93,7 @@ class ICFGPDES(object):
         for item in dictionary:
             pid_container.add(item['id'])
         pid2label = {pid: label for label, pid in enumerate(pid_container)}
-        self.number_cls = len(pid_container)
+        if relabel: self.number_cls = len(pid_container)
 
         for item in dictionary:
             pid = item['id']
@@ -125,7 +125,7 @@ class RSTPReid(object):
         for item in dictionary:
             pid_container.add(item['id'])
         pid2label = {pid: label for label, pid in enumerate(pid_container)}
-        self.number_cls = len(pid_container)
+        if relabel: self.number_cls = len(pid_container)
 
         for item in dictionary:
             pid = item['id']

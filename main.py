@@ -52,5 +52,5 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            torch.cuda.empty_cache()
+        lr_scheduler.step()
 

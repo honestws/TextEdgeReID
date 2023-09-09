@@ -1,13 +1,16 @@
 import itertools
 import torch
 import clip
+import os
 from tqdm import tqdm
+from torch.cuda import amp
 from config import CFG
 from dataset import create_dataloader
 from model import CLIPModel
 from parsejson import dataparse
 
 if __name__ == '__main__':
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:21"
     train_dict, _, test_dict = dataparse(CFG)
     clip_model = CLIPModel(CFG).float()
     clip_model = clip_model.to(CFG.device)
@@ -42,10 +45,12 @@ if __name__ == '__main__':
         for n_iter, (imgs, pids, captions) in pbar:
             imgs = imgs.to(CFG.device)
             txts = clip.tokenize(captions, truncate=True).to(CFG.device)
-            ploss, sloss, tloss = clip_model(imgs, txts, pids)
+            with amp.autocast():
+                ploss, sloss, tloss = clip_model(imgs, txts, pids)
             loss = ploss + CFG.weight_sc * sloss + CFG.weight_tri * tloss
             pbar.set_description("Epoch %d Loss: %.2f" % (e, loss))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+            torch.cuda.empty_cache()
 

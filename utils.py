@@ -1,3 +1,7 @@
+from typing import List, Callable, Union, Any, TypeVar, Tuple
+# from torch import tensor as Tensor
+Tensor = TypeVar('torch.tensor')
+
 class AvgMeter:
     def __init__(self, name="Metric"):
         self.name = name

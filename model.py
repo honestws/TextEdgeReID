@@ -13,6 +13,13 @@ def normalize(x, axis=-1):
     x = 1. * x / (torch.norm(x, 2, axis, keepdim=True).expand_as(x) + 1e-12)
     return x
 
+def cross_entropy(preds, targets, reduction='none'):
+    log_softmax = nn.LogSoftmax(dim=-1)
+    loss = (-targets * log_softmax(preds)).sum(1)
+    if reduction == "none":
+        return loss
+    elif reduction == "mean":
+        return loss.mean()
 
 def euclidean_dist(x, y):
     """
@@ -134,14 +141,6 @@ class TripletLoss(object):
             loss = self.ranking_loss(dist_an - dist_ap, y)
         return loss, dist_ap, dist_an
 
-
-def cross_entropy(preds, targets, reduction='none'):
-    log_softmax = nn.LogSoftmax(dim=-1)
-    loss = (-targets * log_softmax(preds)).sum(1)
-    if reduction == "none":
-        return loss
-    elif reduction == "mean":
-        return loss.mean()
 
 class SupConLoss(nn.Module):
     def __init__(self, device):

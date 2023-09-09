@@ -8,6 +8,7 @@ from config import CFG
 from dataset import create_dataloader
 from model import CLIPModel
 from parsejson import dataparse
+from utils import AvgMeter
 
 if __name__ == '__main__':
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:21"
@@ -41,6 +42,7 @@ if __name__ == '__main__':
     clip_model.train()
     for e in range(CFG.epochs):
         number_cls = train_loader.number_cls
+        loss_meter = AvgMeter()
         pbar = tqdm(enumerate(train_loader), total=num_batch)
         for n_iter, (imgs, pids, captions) in pbar:
             imgs = imgs.to(CFG.device)
@@ -52,5 +54,7 @@ if __name__ == '__main__':
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-        lr_scheduler.step()
+            count = imgs.size(0)
+            loss_meter.update(loss.item(), count)
+        lr_scheduler.step(loss_meter.avg)
 

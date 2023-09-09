@@ -11,7 +11,7 @@ from parsejson import dataparse
 from utils import AvgMeter
 
 if __name__ == '__main__':
-    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:21"
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:64"
     train_dict, _, test_dict = dataparse(CFG)
     clip_model = CLIPModel(CFG).float()
     clip_model = clip_model.to(CFG.device)

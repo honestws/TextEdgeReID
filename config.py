@@ -6,6 +6,8 @@ class CFG(object):
     proj_path = '/home/honestws/codes/TextEdgeReID/'
     input_size = [256, 128]
     triplet = True
+    weight_sc = 1.0
+    weight_tri = 1.0
     stride_size = [16, 16]
     batch_size = 16
     num_instances = 2

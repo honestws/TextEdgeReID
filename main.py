@@ -43,6 +43,7 @@ if __name__ == '__main__':
             imgs = imgs.to(CFG.device)
             txts = clip.tokenize(captions, truncate=True).to(CFG.device)
             ploss, sloss, tloss = clip_model(imgs, txts, pids)
+            loss = ploss + CFG.weight_sc *sloss + CFG.weight_tri * tloss
             pbar.set_description("Epoch %d Loss: %.2f" % (e, loss))
             optimizer.zero_grad()
             loss.backward()

@@ -2,7 +2,8 @@ import clip
 import torch.nn.functional as F
 from torch import nn
 from base import BaseVAE
-from .utils import *
+from loss import SupConLoss, TripletLoss, cross_entropy
+from utils import *
 
 
 class ProjectionHead(nn.Module):

@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-
 from utils import normalize, euclidean_dist, hard_example_mining
 
 

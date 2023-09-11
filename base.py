@@ -1,6 +1,7 @@
-from .types_ import *
+from typing import List, Any, TypeVar
 from torch import nn
 from abc import abstractmethod
+Tensor = TypeVar('torch.tensor')
 
 
 class BaseVAE(nn.Module):

@@ -1,5 +1,6 @@
 import torch
 import os.path as osp
+import torchvision.transforms as T
 from torch.utils.data import Dataset, DataLoader
 from sampler import RandomIdentitySampler
 from PIL import Image
@@ -140,20 +141,29 @@ __factory = {
 }
 
 
-def create_dataloader(CFG, train_list, test_list, transform):
+def create_dataloader(CFG, train_list, test_list, triplet_transform):
     dataset = __factory[CFG.dataset](train_list, test_list)
-    train_set = ImageTextDataset(dataset.train, transform)
+    tri_train_set = ImageTextDataset(dataset.train, triplet_transform)
     triplet_train_loader = DataLoader(
-        train_set, batch_size=CFG.batch_size,
+        tri_train_set, batch_size=CFG.batch_size,
         sampler=RandomIdentitySampler(dataset.train, CFG.batch_size, CFG.num_instances),
         num_workers=CFG.num_workers, collate_fn=collate_fn
     )
     setattr(triplet_train_loader, 'number_cls', dataset.number_cls)
-    plain_train_loader = DataLoader(train_set, batch_size=CFG.batch_size,
+    plain_transform = T.Compose([
+        T.Resize([256, 128], interpolation=3),
+        T.RandomHorizontalFlip(),
+        T.Pad(10),
+        T.RandomCrop([256, 128]),
+        T.ToTensor(),
+        T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+    ])
+    plain_train_set = ImageTextDataset(dataset.train, plain_transform)
+    plain_train_loader = DataLoader(plain_train_set, batch_size=CFG.batch_size,
                                     shuffle=True, num_workers=CFG.num_workers,
                                     collate_fn=collate_fn)
     setattr(plain_train_loader, 'number_cls', dataset.number_cls)
-    val_set = ImageTextDataset(dataset.test, transform)
+    val_set = ImageTextDataset(dataset.test, triplet_transform)
     test_loader = DataLoader(
         val_set, batch_size=CFG.batch_size, shuffle=False, num_workers=CFG.num_workers, collate_fn=collate_fn
     )

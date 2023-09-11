@@ -57,6 +57,7 @@ if __name__ == '__main__':
             clip_optimizer.step()
             count = imgs.size(0)
             loss_meter.update(loss.item(), count)
+            break
         lr_scheduler.step(loss_meter.avg)
 
     vae = VanillaVAE(CFG.in_channels, CFG.latent_dim).to(CFG.device)
@@ -71,5 +72,7 @@ if __name__ == '__main__':
         for n_iter, (imgs, pids, captions) in pbar:
             imgs = imgs.to(CFG.device)
             results = vae(imgs)
-            vae_loss = vae.loss_function(*results, M_N=1.0)
-
+            vae_loss = vae.loss_function(*results, M_N=1.0)['loss']
+            pbar.set_description("Epoch %d Loss: %.2f" % (e, vae_loss))
+            vae_loss.backward()
+            vae_optimizer.step()

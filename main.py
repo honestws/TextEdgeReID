@@ -1,9 +1,10 @@
 import itertools
 import torch
-import clip
 import os
 from tqdm import tqdm
 from torch.cuda import amp
+
+from clip import clip
 from config import CFG
 from dataset import create_dataloader
 from model import CLIPModel, VanillaVAE

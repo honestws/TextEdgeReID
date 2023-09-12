@@ -1,7 +1,7 @@
-import clip
 import torch.nn.functional as F
 from torch import nn
 from base import BaseVAE
+from clip import clip
 from loss import SupConLoss, TripletLoss, cross_entropy
 from utils import *
 
@@ -68,8 +68,8 @@ class CLIPModel(nn.Module):
             (images_similarity + texts_similarity) / 2 * self.temperature, dim=-1
         )
 
-        texts_loss = cross_entropy(logits, targets, reduction='none')
-        images_loss = cross_entropy(logits.T, targets.T, reduction='none')
+        texts_loss = cross_entropy(logits, targets)
+        images_loss = cross_entropy(logits.T, targets.T)
         pair_loss = (images_loss + texts_loss) / 2.0  # shape: (batch_size)
 
         supc_loss = (self.supcon(text_features, image_features, labels, labels) +

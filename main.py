@@ -51,12 +51,12 @@ if __name__ == '__main__':
             with amp.autocast():
                 ploss, sloss, tloss = clip_model(imgs, txts, pids)
             loss = ploss + CFG.weight_sc * sloss + CFG.weight_tri * tloss
-            pbar.set_description("Epoch %d Loss: %.2f" % (e, loss))
             clip_optimizer.zero_grad()
             loss.backward()
             clip_optimizer.step()
             count = imgs.size(0)
             loss_meter.update(loss.item(), count)
+            pbar.set_description("Epoch %d Loss: %.2f" % (e, loss_meter.avg))
         lr_scheduler.step(loss_meter.avg)
 
     vae = VanillaVAE(CFG.in_channels, CFG.latent_dim).to(CFG.device)
@@ -67,11 +67,14 @@ if __name__ == '__main__':
     vae.train()
     num_batch = len(plain_train_loader)
     for e in range(CFG.epochs):
+        loss_meter = AvgMeter()
         pbar = tqdm(enumerate(plain_train_loader), total=num_batch)
         for n_iter, (imgs, pids, captions) in pbar:
             imgs = imgs.to(CFG.device)
             results = vae(imgs)
             vae_loss = vae.loss_function(*results, M_N=1.0)['loss']
-            pbar.set_description("Epoch %d Loss: %.2f" % (e, vae_loss))
             vae_loss.backward()
             vae_optimizer.step()
+            count = imgs.size(0)
+            loss_meter.update(vae_loss.item(), count)
+            pbar.set_description("Epoch %d Loss: %.2f" % (e, loss_meter.avg))

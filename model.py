@@ -54,7 +54,7 @@ class CLIPModel(nn.Module):
 
     def forward(self, imgs, txts, labels):
         image_features = self.model.encode_image(imgs)
-        text_features = self.model.encode_text(txts)
+        text_features, _ = self.model.encode_text(txts)
         # image_features_ = self.model.visual(imgs)
         # Getting Image and Text Embeddings (with same dimension)
         image_embeddings = self.image_projection(image_features)

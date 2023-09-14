@@ -3,7 +3,6 @@ import torch
 import os
 from tqdm import tqdm
 from torch.cuda import amp
-
 from clip import clip
 from config import CFG
 from dataset import create_dataloader
@@ -58,7 +57,6 @@ if __name__ == '__main__':
             clip_optimizer.step()
             count = imgs.size(0)
             loss_meter.update(loss.item(), count)
-            break
         lr_scheduler.step(loss_meter.avg)
 
     vae = VanillaVAE(CFG.in_channels, CFG.latent_dim).to(CFG.device)

@@ -96,17 +96,42 @@ class VanillaVAE(BaseVAE):
 
         modules = []
         if hidden_dims is None:
-            hidden_dims = [32, 32, 64, 64, 128, 128]
+            hidden_dims = [32, 64, 128, 64, 32, 4, 1]
 
         # Build Encoder
-        for h_dim in hidden_dims:
-            modules.append(
-                nn.Sequential(
-                    nn.Conv2d(in_channels, out_channels=h_dim,
-                              kernel_size= 3, stride= 2, padding  = 1),
-                    nn.BatchNorm2d(h_dim),
-                    nn.LeakyReLU())
-            )
+        for i, h_dim in enumerate(hidden_dims):
+            if (i+1) % 3 == 0 and h_dim == 128:
+                modules.append(
+                    nn.Sequential(
+                        nn.Conv2d(in_channels, out_channels=h_dim,
+                                  kernel_size=3, stride=(2, 2), padding=1),
+                        nn.BatchNorm2d(h_dim),
+                        nn.LeakyReLU())
+                )
+            elif (i+1) % 3 == 0:
+                modules.append(
+                    nn.Sequential(
+                        nn.Conv2d(in_channels, out_channels=h_dim,
+                                  kernel_size=3, stride=(2, 1), padding=1),
+                        nn.BatchNorm2d(h_dim),
+                        nn.LeakyReLU())
+                )
+            elif h_dim == 1:
+                modules.append(
+                    nn.Sequential(
+                        nn.Conv2d(in_channels, out_channels=h_dim,
+                                  kernel_size=3, stride=(2, 2), padding=1),
+                        nn.BatchNorm2d(h_dim),
+                        nn.LeakyReLU())
+                )
+            else:
+                modules.append(
+                    nn.Sequential(
+                        nn.Conv2d(in_channels, out_channels=h_dim,
+                                  kernel_size=3, stride=(1, 1), padding=1),
+                        nn.BatchNorm2d(h_dim),
+                        nn.LeakyReLU())
+                )
             in_channels = h_dim
 
         self.encoder = nn.Sequential(*modules)
@@ -154,7 +179,8 @@ class VanillaVAE(BaseVAE):
         :param input: (Tensor) Input tensor to encoder [N x C x H x W]
         :return: (Tensor) List of latent codes
         """
-        result = self.encoder(input)
+        feat = self.encoder[:-1](input)
+        result = self.encoder[-1](feat)
         result = torch.flatten(result, start_dim=1)
 
         # Split the result into mu and var components
@@ -162,7 +188,7 @@ class VanillaVAE(BaseVAE):
         mu = self.fc_mu(result)
         log_var = self.fc_var(result)
 
-        return [mu, log_var]
+        return feat, [mu, log_var]
 
     def decode(self, z: Tensor) -> Tensor:
         """

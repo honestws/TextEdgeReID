@@ -159,13 +159,13 @@ def create_dataloader(CFG, train_list, test_list, triplet_transform):
         T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
     plain_train_set = ImageTextDataset(dataset.train + dataset.test, plain_transform)
-    plain_train_loader = DataLoader(plain_train_set, batch_size=CFG.batch_size,
+    plain_train_loader = DataLoader(plain_train_set, batch_size=CFG.batch_size*4,
                                     shuffle=True, num_workers=CFG.num_workers,
                                     collate_fn=collate_fn)
     setattr(plain_train_loader, 'number_cls', dataset.number_cls)
     val_set = ImageTextDataset(dataset.test, triplet_transform)
     test_loader = DataLoader(
-        val_set, batch_size=CFG.batch_size, shuffle=False, num_workers=CFG.num_workers, collate_fn=collate_fn
+        val_set, batch_size=CFG.batch_size*4, shuffle=False, num_workers=CFG.num_workers, collate_fn=collate_fn
     )
 
     return triplet_train_loader, plain_train_loader, test_loader

@@ -135,29 +135,54 @@ class VanillaVAE(BaseVAE):
             in_channels = h_dim
 
         self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1]*8, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1]*8, latent_dim)
+        self.fc_mu = nn.Linear(hidden_dims[-1]*1024, latent_dim)
+        self.fc_var = nn.Linear(hidden_dims[-1]*1024, latent_dim)
 
 
         # Build Decoder
         modules = []
 
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 8)
+        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 1024)
 
         hidden_dims.reverse()
 
         for i in range(len(hidden_dims) - 1):
-            modules.append(
-                nn.Sequential(
-                    nn.ConvTranspose2d(hidden_dims[i],
-                                       hidden_dims[i + 1],
-                                       kernel_size=3,
-                                       stride = 2,
-                                       padding=1,
-                                       output_padding=1),
-                    nn.BatchNorm2d(hidden_dims[i + 1]),
-                    nn.LeakyReLU())
-            )
+            if hidden_dims[i] == 1:
+                modules.append(
+                    nn.Sequential(
+                        nn.ConvTranspose2d(hidden_dims[i],
+                                           hidden_dims[i + 1],
+                                           kernel_size=3,
+                                           stride = (2, 2),
+                                           padding=1,
+                                           output_padding=1),
+                        nn.BatchNorm2d(hidden_dims[i + 1]),
+                        nn.LeakyReLU())
+                )
+            elif hidden_dims[i] == 128:
+                modules.append(
+                    nn.Sequential(
+                        nn.ConvTranspose2d(hidden_dims[i], out_channels=hidden_dims[i + 1],
+                                  kernel_size=3, stride=(2, 2), padding=1, output_padding=1),
+                        nn.BatchNorm2d(hidden_dims[i + 1]),
+                        nn.LeakyReLU())
+                )
+            elif hidden_dims[i] == 4:
+                modules.append(
+                    nn.Sequential(
+                        nn.ConvTranspose2d(hidden_dims[i], out_channels=hidden_dims[i + 1],
+                                  kernel_size=3, stride=(2, 1), padding=1, output_padding=(1, 0)),
+                        nn.BatchNorm2d(hidden_dims[i + 1]),
+                        nn.LeakyReLU())
+                )
+            else:
+                modules.append(
+                    nn.Sequential(
+                        nn.ConvTranspose2d(hidden_dims[i], out_channels=hidden_dims[i + 1],
+                                  kernel_size=3, stride=(1, 1), padding=1, output_padding=1),
+                        nn.BatchNorm2d(hidden_dims[i + 1]),
+                        nn.LeakyReLU())
+                )
         self.decoder = nn.Sequential(*modules)
         self.final_layer = nn.Sequential(
                             nn.ConvTranspose2d(hidden_dims[-1],
@@ -188,7 +213,7 @@ class VanillaVAE(BaseVAE):
         mu = self.fc_mu(result)
         log_var = self.fc_var(result)
 
-        return feat, [mu, log_var]
+        return [feat, mu, log_var]
 
     def decode(self, z: Tensor) -> Tensor:
         """
@@ -198,7 +223,7 @@ class VanillaVAE(BaseVAE):
         :return: (Tensor) [B x C x H x W]
         """
         result = self.decoder_input(z)
-        result = result.view(-1, 128, 4, 2)
+        result = result.view(z.shape[0], 1, 32, 32)
         result = self.decoder(result)
         result = self.final_layer(result)
         return result
@@ -216,9 +241,9 @@ class VanillaVAE(BaseVAE):
         return eps * std + mu
 
     def forward(self, input: Tensor, **kwargs) -> List[Tensor]:
-        mu, log_var = self.encode(input)
+        feat, mu, log_var = self.encode(input)
         z = self.reparameterize(mu, log_var)
-        return  [self.decode(z), input, mu, log_var]
+        return [self.decode(z), input, feat, mu, log_var]
 
     def loss_function(self,
                       *args,
@@ -232,8 +257,8 @@ class VanillaVAE(BaseVAE):
         """
         recons = args[0]
         input = args[1]
-        mu = args[2]
-        log_var = args[3]
+        mu = args[3]
+        log_var = args[4]
 
         kld_weight = kwargs['M_N'] # Account for the minibatch samples from the dataset
         recons_loss =F.mse_loss(recons, input)

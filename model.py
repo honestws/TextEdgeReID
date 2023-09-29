@@ -179,7 +179,7 @@ class VanillaVAE(BaseVAE):
                 modules.append(
                     nn.Sequential(
                         nn.ConvTranspose2d(hidden_dims[i], out_channels=hidden_dims[i + 1],
-                                  kernel_size=3, stride=(1, 1), padding=1, output_padding=1),
+                                  kernel_size=3, stride=(1, 1), padding=1),
                         nn.BatchNorm2d(hidden_dims[i + 1]),
                         nn.LeakyReLU())
                 )
@@ -188,9 +188,8 @@ class VanillaVAE(BaseVAE):
                             nn.ConvTranspose2d(hidden_dims[-1],
                                                hidden_dims[-1],
                                                kernel_size=3,
-                                               stride=2,
-                                               padding=1,
-                                               output_padding=1),
+                                               stride=(1, 1),
+                                               padding=1),
                             nn.BatchNorm2d(hidden_dims[-1]),
                             nn.LeakyReLU(),
                             nn.Conv2d(hidden_dims[-1], out_channels= 3,
@@ -222,11 +221,11 @@ class VanillaVAE(BaseVAE):
         :param z: (Tensor) [B x D]
         :return: (Tensor) [B x C x H x W]
         """
-        result = self.decoder_input(z)
-        result = result.view(z.shape[0], 1, 32, 32)
-        result = self.decoder(result)
-        result = self.final_layer(result)
-        return result
+        r = self.decoder_input(z)
+        r = r.view(z.shape[0], 1, 32, 32)
+        r = self.decoder(r)
+        r = self.final_layer(r)
+        return r
 
     def reparameterize(self, mu: Tensor, logvar: Tensor) -> Tensor:
         """

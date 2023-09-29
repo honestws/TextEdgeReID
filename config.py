@@ -2,6 +2,7 @@ import torch
 
 
 class CFG(object):
+    stage = 'vae' # vae, latdiff
     dataset = 'RSTPReid' # 'CUHK-PEDES', 'ICFG-PDES', 'RSTPReid'
     proj_path = '/home/honestws/codes/TextEdgeReID/'
     input_size = [256, 128]
@@ -25,7 +26,7 @@ class CFG(object):
     temperature = 1.0
     projection_dim = 256
     dropout = 0.1
-    latent_dim = 768
+    latent_dim = 256
     in_channels = 3
     vae_lr = 0.5e-5
     vae_betas = (0.9, 0.999)

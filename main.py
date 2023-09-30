@@ -7,8 +7,7 @@ from clip import clip
 from clip.model import CLIPModel
 from config import CFG
 from dataset import create_dataloader
-from latent.latent_diffusion import LatentDiffusion
-from latent.unet import UNetModel
+from latent.model import Txt2Img
 from parsejson import dataparse
 from utils import AvgMeter
 from vae.model import VanillaVAE
@@ -101,26 +100,14 @@ if __name__ == '__main__':
 
     elif CFG.stage == 'latdiff':
         print('-' * 30 + 'Resuming from checkpoint' + '-' * 30)
-        clip_checkpoint = torch.load('./checkpoint/clip.pt')
-        vae_checkpoint = torch.load('./checkpoint/vae.pt')
-        clip_model.load_state_dict(clip_checkpoint['net'])
-        vae.load_state_dict(vae_checkpoint['net'])
-        eps_model = UNetModel(in_channels=4,
-                               out_channels=4,
-                               channels=320,
-                               attention_levels=[0, 1, 2],
-                               n_res_blocks=2,
-                               channel_multipliers=[1, 2, 4, 4],
-                               n_heads=8,
-                               tf_layers=1,
-                               d_cond=768)
-        model = LatentDiffusion(linear_start=0.00085,
-                                linear_end=0.0120,
-                                n_steps=1000,
-                                latent_scaling_factor=0.18215,
-                                autoencoder=vae,
-                                clip_embedder=clip_model,
-                                unet_model=eps_model)
+        txt2img = Txt2Img(clip_model, vae,
+                          sampler_name=CFG.sampler_name,
+                          n_steps=CFG.steps)
+        txt2img(dest_path='outputs',
+                batch_size=opt.batch_size,
+                prompt=opt.prompt,
+                uncond_scale=opt.scale)
+
 
 
     else:

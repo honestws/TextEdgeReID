@@ -10,9 +10,10 @@ summary: >
 
 import argparse
 import torch
-from pathlib import Path
-
+from latent.ddim import DDIMSampler
+from latent.ddpm import DDPMSampler
 from latent.latent_diffusion import LatentDiffusion
+from latent.util import load_model
 
 
 class Txt2Img:
@@ -21,20 +22,22 @@ class Txt2Img:
     """
     model: LatentDiffusion
 
-    def __init__(self, *,
-                 checkpoint_path: Path,
+    def __init__(self,
+                 clip_model,
+                 vae,
                  sampler_name: str,
                  n_steps: int = 50,
                  ddim_eta: float = 0.0,
                  ):
         """
-        :param checkpoint_path: is the path of the checkpoint
+        :param clip_model: clip model
+        :param vae: autoencoder
         :param sampler_name: is the name of the [sampler](../sampler/index.html)
         :param n_steps: is the number of sampling steps
         :param ddim_eta: is the [DDIM sampling](../sampler/ddim.html) $\eta$ constant
         """
         # Load [latent diffusion model](../latent_diffusion.html)
-        self.model = load_model(checkpoint_path)
+        self.model = load_model(clip_model, vae)
         # Get device
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         # Move the model to device
@@ -92,7 +95,7 @@ class Txt2Img:
             images = self.model.autoencoder_decode(x)
 
         # Save images
-        save_images(images, dest_path, 'txt_')
+        # save_images(images, dest_path, 'txt_')
 
 
 def main():

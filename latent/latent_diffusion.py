@@ -22,13 +22,8 @@ We use same notations for $\alpha_t$, $\beta_t$ schedules, etc.
 """
 
 from typing import List
-
 import torch
 import torch.nn as nn
-
-from labml_nn.diffusion.stable_diffusion.model.autoencoder import Autoencoder
-from labml_nn.diffusion.stable_diffusion.model.clip_embedder import CLIPTextEmbedder
-from labml_nn.diffusion.stable_diffusion.model.unet import UNetModel
 
 
 class DiffusionWrapper(nn.Module):
@@ -39,7 +34,7 @@ class DiffusionWrapper(nn.Module):
     so that we do not have to map the checkpoint weights explicitly*.
     """
 
-    def __init__(self, diffusion_model: UNetModel):
+    def __init__(self, diffusion_model):
         super().__init__()
         self.diffusion_model = diffusion_model
 
@@ -57,14 +52,11 @@ class LatentDiffusion(nn.Module):
     * [U-Net](model/unet.html) with [attention](model/unet_attention.html)
     * [CLIP embeddings generator](model/clip_embedder.html)
     """
-    model: DiffusionWrapper
-    first_stage_model: Autoencoder
-    cond_stage_model: CLIPTextEmbedder
 
     def __init__(self,
-                 unet_model: UNetModel,
-                 autoencoder: Autoencoder,
-                 clip_embedder: CLIPTextEmbedder,
+                 unet_model,
+                 autoencoder,
+                 clip_embedder,
                  latent_scaling_factor: float,
                  n_steps: int,
                  linear_start: float,

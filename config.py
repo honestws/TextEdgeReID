@@ -2,7 +2,7 @@ import torch
 
 
 class CFG(object):
-    stage = 'vae' # clip, vae, latdiff
+    stage = 'latdiff' # clip, vae, latdiff
     dataset = 'RSTPReid' # 'CUHK-PEDES', 'ICFG-PDES', 'RSTPReid'
     proj_path = '/home/honestws/codes/TextEdgeReID/'
     input_size = [256, 128]
@@ -32,3 +32,5 @@ class CFG(object):
     vae_betas = (0.9, 0.999)
     vae_eps = 1e-8
     sample_steps = 50
+    steps = 50
+    sampler_name = "ddim" # ddim, ddpm

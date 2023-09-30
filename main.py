@@ -7,7 +7,7 @@ from clip import clip
 from clip.model import CLIPModel
 from config import CFG
 from dataset import create_dataloader
-from latent.model import Txt2Img
+from latent.model import LatentDiffusionModel
 from parsejson import dataparse
 from utils import AvgMeter
 from vae.model import VanillaVAE
@@ -100,15 +100,14 @@ if __name__ == '__main__':
 
     elif CFG.stage == 'latdiff':
         print('-' * 30 + 'Resuming from checkpoint' + '-' * 30)
-        txt2img = Txt2Img(clip_model, vae,
-                          sampler_name=CFG.sampler_name,
-                          n_steps=CFG.steps)
-        txt2img(dest_path='outputs',
-                batch_size=opt.batch_size,
-                prompt=opt.prompt,
-                uncond_scale=opt.scale)
-
-
-
+        latent_diffusion_model = LatentDiffusionModel(clip_model, vae, plain_train_loader,
+                                                      CFG.diff_lr,
+                                                      sampler_name=CFG.sampler_name,
+                                                      n_steps=CFG.steps)
+        latent_diffusion_model.train()
+        latent_diffusion_model.infer(dest_path='outputs',
+                      prompt=opt.prompt,
+                      batch_size=CFG.batch_size,
+                      uncond_scale=CFG.scale)
     else:
         raise NotImplementedError('Select CLIP, VAE and Latent diffusion models for training.')

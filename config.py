@@ -34,3 +34,5 @@ class CFG(object):
     sample_steps = 50
     steps = 50
     sampler_name = "ddim" # ddim, ddpm
+    scale = 7.5
+    diff_lr = 2e-5

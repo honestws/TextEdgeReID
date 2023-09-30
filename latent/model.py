@@ -8,7 +8,6 @@ summary: >
 # Generate images using [stable diffusion](../index.html) with a prompt
 """
 
-import argparse
 import torch
 from latent.ddim import DDIMSampler
 from latent.ddpm import DDPMSampler
@@ -16,7 +15,7 @@ from latent.latent_diffusion import LatentDiffusion
 from latent.util import load_model
 
 
-class Txt2Img:
+class LatentDiffusionModel:
     """
     ### Text to image class
     """
@@ -25,6 +24,8 @@ class Txt2Img:
     def __init__(self,
                  clip_model,
                  vae,
+                 dataloader,
+                 lr: float,
                  sampler_name: str,
                  n_steps: int = 50,
                  ddim_eta: float = 0.0,
@@ -32,12 +33,17 @@ class Txt2Img:
         """
         :param clip_model: clip model
         :param vae: autoencoder
+        :param lr: learning rate
         :param sampler_name: is the name of the [sampler](../sampler/index.html)
         :param n_steps: is the number of sampling steps
         :param ddim_eta: is the [DDIM sampling](../sampler/ddim.html) $\eta$ constant
         """
+        # Create dataloader
+        self.data_loader = dataloader
         # Load [latent diffusion model](../latent_diffusion.html)
         self.model = load_model(clip_model, vae)
+        # Create optimizer
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         # Get device
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         # Move the model to device
@@ -51,14 +57,19 @@ class Txt2Img:
         elif sampler_name == 'ddpm':
             self.sampler = DDPMSampler(self.model)
 
+    def train(self):
+        """
+        ### Train
+        """
+
     @torch.no_grad()
-    def __call__(self, *,
-                 dest_path: str,
-                 batch_size: int = 3,
-                 prompt: str,
-                 h: int = 512, w: int = 512,
-                 uncond_scale: float = 7.5,
-                 ):
+    def infer(self,
+              dest_path: str,
+              prompt: str,
+              batch_size: int = 3,
+              h: int = 512, w: int = 512,
+              uncond_scale: float = 7.5
+              ):
         """
         :param dest_path: is the path to store the generated images
         :param batch_size: is the number of images to generate in a batch
@@ -92,60 +103,8 @@ class Txt2Img:
                                     uncond_scale=uncond_scale,
                                     uncond_cond=un_cond)
             # Decode the image from the [autoencoder](../model/autoencoder.html)
-            images = self.model.autoencoder_decode(x)
+            # images = self.model.autoencoder_decode(x)
 
         # Save images
         # save_images(images, dest_path, 'txt_')
-
-
-def main():
-    """
-    ### CLI
-    """
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--prompt",
-        type=str,
-        nargs="?",
-        default="a telephone on a desk",
-        help="the prompt to render"
-    )
-
-    parser.add_argument("--batch_size", type=int, default=4, help="batch size")
-
-    parser.add_argument(
-        '--sampler',
-        dest='sampler_name',
-        choices=['ddim', 'ddpm'],
-        default='ddim',
-        help=f'Set the sampler.',
-    )
-
-    parser.add_argument("--flash", action='store_true', help="whether to use flash attention")
-
-    parser.add_argument("--steps", type=int, default=50, help="number of sampling steps")
-
-    parser.add_argument("--scale", type=float, default=7.5,
-                        help="unconditional guidance scale: "
-                             "eps = eps(x, empty) + scale * (eps(x, cond) - eps(x, empty))")
-
-    opt = parser.parse_args()
-
-    set_seed(78)
-
-    # Set flash attention
-    from labml_nn.diffusion.stable_diffusion.model.unet_attention import CrossAttention
-    CrossAttention.use_flash_attention = opt.flash
-
-    #
-    txt2img = Txt2Img(checkpoint_path=lab.get_data_path() / 'stable-diffusion' / 'sd-v1-4.ckpt',
-                      sampler_name=opt.sampler_name,
-                      n_steps=opt.steps)
-
-    with monit.section('Generate'):
-        txt2img(dest_path='outputs',
-                batch_size=opt.batch_size,
-                prompt=opt.prompt,
-                uncond_scale=opt.scale)
 

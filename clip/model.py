@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from typing import Tuple, Union
-
+from clip import clip
+from loss import SupConLoss, TripletLoss, cross_entropy
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -434,3 +435,81 @@ def build_model(state_dict: dict):
     convert_weights(model)
     model.load_state_dict(state_dict)
     return model.eval()
+
+
+class ProjectionHead(nn.Module):
+    def __init__(
+            self,
+            embedding_dim,
+            projection_dim=256,
+            dropout=0.1
+    ):
+        super(ProjectionHead, self).__init__()
+        self.projection = nn.Linear(embedding_dim, projection_dim)
+        self.gelu = nn.GELU()
+        self.fc = nn.Linear(projection_dim, projection_dim)
+        self.dropout = nn.Dropout(dropout)
+        self.layer_norm = nn.LayerNorm(projection_dim)
+
+    def forward(self, x):
+        projected = self.projection(x)
+        x = self.gelu(projected)
+        x = self.fc(x)
+        x = self.dropout(x)
+        x = x + projected
+        x = self.layer_norm(x)
+        return x
+
+
+class CLIPModel(nn.Module):
+    def __init__(self, CFG):
+        super(CLIPModel, self).__init__()
+        model, preprocess = clip.load('ViT-L/14')
+        self.model = model
+        self.preprocess = preprocess
+        self.image_projection = \
+            ProjectionHead(embedding_dim=CFG.image_embedding,
+                           projection_dim=CFG.projection_dim,
+                           dropout=CFG.dropout)
+        self.text_projection = \
+            ProjectionHead(embedding_dim=CFG.text_embedding,
+                           projection_dim=CFG.projection_dim,
+                           dropout=CFG.dropout)
+        self.temperature = CFG.temperature
+        if CFG.triplet:
+            self.use_triplet = True
+        else:
+            self.use_triplet = False
+        self.supcon = SupConLoss(CFG.device)
+        self.triplet = TripletLoss()
+
+    def forward(self, imgs, txts, labels):
+        image_features = self.model.encode_image(imgs)
+        text_features, _ = self.model.encode_text(txts)
+        # image_features_ = self.model.visual(imgs)
+        # Getting Image and Text Embeddings (with same dimension)
+        image_embeddings = self.image_projection(image_features)
+        text_embeddings = self.text_projection(text_features)
+
+        # Calculating the Loss
+        logits = (text_embeddings @ image_embeddings.T) / self.temperature
+        images_similarity = image_embeddings @ image_embeddings.T
+        texts_similarity = text_embeddings @ text_embeddings.T
+        targets = F.softmax(
+            (images_similarity + texts_similarity) / 2 * self.temperature, dim=-1
+        )
+
+        texts_loss = cross_entropy(logits, targets)
+        images_loss = cross_entropy(logits.T, targets.T)
+        pair_loss = (images_loss + texts_loss) / 2.0  # shape: (batch_size)
+
+        supc_loss = (self.supcon(text_features, image_features, labels, labels) +
+                    self.supcon(image_features, text_features, labels, labels))/2
+
+        if self.use_triplet:
+            triplet_loss = (self.triplet(text_features, labels)[0] +
+                            self.triplet(image_features, labels)[0])/2
+        else:
+            triplet_loss = 0
+
+        return pair_loss.mean(), supc_loss, triplet_loss

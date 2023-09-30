@@ -4,11 +4,12 @@ import torch
 from tqdm import tqdm
 from torch.cuda import amp
 from clip import clip
+from clip.model import CLIPModel
 from config import CFG
 from dataset import create_dataloader
-from model import CLIPModel, VanillaVAE
 from parsejson import dataparse
 from utils import AvgMeter
+from vae.model import VanillaVAE
 
 if __name__ == '__main__':
     train_dict, _, test_dict = dataparse(CFG)

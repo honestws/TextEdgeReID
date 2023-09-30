@@ -14,16 +14,14 @@ We have kept to the model definition and naming unchanged from
 [CompVis/stable-diffusion](https://github.com/CompVis/stable-diffusion)
 so that we can load the checkpoints directly.
 """
-
 import math
-from typing import List
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from typing import List
 
-from labml_nn.diffusion.stable_diffusion.model.unet_attention import SpatialTransformer
+from latent.unet_attention import SpatialTransformer
 
 
 class UNetModel(nn.Module):

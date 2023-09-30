@@ -7,6 +7,8 @@ from clip import clip
 from clip.model import CLIPModel
 from config import CFG
 from dataset import create_dataloader
+from latent.latent_diffusion import LatentDiffusion
+from latent.unet import UNetModel
 from parsejson import dataparse
 from utils import AvgMeter
 from vae.model import VanillaVAE
@@ -14,6 +16,7 @@ from vae.model import VanillaVAE
 if __name__ == '__main__':
     train_dict, _, test_dict = dataparse(CFG)
     clip_model = CLIPModel(CFG).float()
+    vae = VanillaVAE(CFG.in_channels, CFG.latent_dim)
     transform = clip_model.preprocess
     triplet_train_loader, plain_train_loader, test_loader = \
         create_dataloader(CFG, train_dict, test_dict, transform)
@@ -68,7 +71,7 @@ if __name__ == '__main__':
         torch.save(state, './checkpoints/' + CFG.stage + '.pt')
 
     elif CFG.stage == 'vae':
-        vae = VanillaVAE(CFG.in_channels, CFG.latent_dim).to(CFG.device)
+        vae = vae.to(CFG.device)
         vae_optimizer = torch.optim.Adam(vae.parameters(), lr=CFG.vae_lr, betas=CFG.vae_betas,
                                          eps=CFG.vae_eps, weight_decay=0., amsgrad=False, maximize=False,
                                          foreach=None, capturable=False, differentiable=False, fused=False)
@@ -97,6 +100,28 @@ if __name__ == '__main__':
         torch.save(state, './checkpoints/' + CFG.stage + '.pt')
 
     elif CFG.stage == 'latdiff':
-        pass
+        print('-' * 30 + 'Resuming from checkpoint' + '-' * 30)
+        clip_checkpoint = torch.load('./checkpoint/clip.pt')
+        vae_checkpoint = torch.load('./checkpoint/vae.pt')
+        clip_model.load_state_dict(clip_checkpoint['net'])
+        vae.load_state_dict(vae_checkpoint['net'])
+        eps_model = UNetModel(in_channels=4,
+                               out_channels=4,
+                               channels=320,
+                               attention_levels=[0, 1, 2],
+                               n_res_blocks=2,
+                               channel_multipliers=[1, 2, 4, 4],
+                               n_heads=8,
+                               tf_layers=1,
+                               d_cond=768)
+        model = LatentDiffusion(linear_start=0.00085,
+                                linear_end=0.0120,
+                                n_steps=1000,
+                                latent_scaling_factor=0.18215,
+                                autoencoder=vae,
+                                clip_embedder=clip_model,
+                                unet_model=eps_model)
+
+
     else:
         raise NotImplementedError('Select CLIP, VAE and Latent diffusion models for training.')

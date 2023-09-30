@@ -31,3 +31,4 @@ class CFG(object):
     vae_lr = 0.5e-5
     vae_betas = (0.9, 0.999)
     vae_eps = 1e-8
+    sample_steps = 50

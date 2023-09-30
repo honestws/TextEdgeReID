@@ -1,4 +1,5 @@
 import itertools
+import os
 import torch
 from tqdm import tqdm
 from torch.cuda import amp
@@ -38,7 +39,7 @@ if __name__ == '__main__':
 
         clip_model.train()
         print('-'*30 + 'Training CLIP Model' + '-'*30)
-        for e in range(2):
+        for e in range(CFG.epochs):
             number_cls = train_loader.number_cls
             loss_meter = AvgMeter()
             pbar = tqdm(enumerate(train_loader), total=num_batch)
@@ -56,6 +57,14 @@ if __name__ == '__main__':
                 pbar.set_description("Epoch %d Loss: %.2f" % (e, loss_meter.avg))
                 break
             lr_scheduler.step(loss_meter.avg)
+        print('-' * 30 + 'Saving CLIP Model' + '-' * 30)
+        state = {
+            'net': clip_model.state_dict(),
+            'epoch': e,
+        }
+        if not os.path.isdir('checkpoints'):
+            os.mkdir('checkpoints')
+        torch.save(state, './checkpoints/' + CFG.stage + '.pt')
 
     elif CFG.stage == 'vae':
         vae = VanillaVAE(CFG.in_channels, CFG.latent_dim).to(CFG.device)
@@ -77,6 +86,14 @@ if __name__ == '__main__':
                 count = imgs.size(0)
                 loss_meter.update(vae_loss.item(), count)
                 pbar.set_description("Epoch %d Loss: %.2f" % (e, loss_meter.avg))
+        print('-' * 30 + 'Saving VAE Model' + '-' * 30)
+        state = {
+            'net': vae.state_dict(),
+            'epoch': e,
+        }
+        if not os.path.isdir('checkpoints'):
+            os.mkdir('checkpoints')
+        torch.save(state, './checkpoints/' + CFG.stage + '.pt')
 
     elif CFG.stage == 'latdiff':
         pass

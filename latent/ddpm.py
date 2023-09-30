@@ -12,11 +12,10 @@ summary: >
 For a simpler DDPM implementation refer to our [DDPM implementation](../../ddpm/index.html).
 We use same notations for $\alpha_t$, $\beta_t$ schedules, etc.
 """
-
-from typing import Optional, List
-
 import numpy as np
 import torch
+from typing import Optional, List
+from latent import DiffusionSampler, LatentDiffusion
 
 
 class DDPMSampler(DiffusionSampler):

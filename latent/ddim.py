@@ -12,15 +12,10 @@ summary: >
 This implements DDIM sampling from the paper
 [Denoising Diffusion Implicit Models](https://papers.labml.ai/paper/2010.02502)
 """
-
-from typing import Optional, List
-
 import numpy as np
 import torch
-
-from labml import monit
-from labml_nn.diffusion.stable_diffusion.latent_diffusion import LatentDiffusion
-from labml_nn.diffusion.stable_diffusion.sampler import DiffusionSampler
+from typing import Optional, List
+from latent import DiffusionSampler, LatentDiffusion
 
 
 class DDIMSampler(DiffusionSampler):

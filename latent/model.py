@@ -13,6 +13,7 @@ from latent.ddim import DDIMSampler
 from latent.ddpm import DDPMSampler
 from latent.latent_diffusion import LatentDiffusion
 from latent.util import load_model
+from tqdm import tqdm
 
 
 class LatentDiffusionModel:
@@ -61,6 +62,18 @@ class LatentDiffusionModel:
         """
         ### Train
         """
+        # Iterate through the dataset
+        num_batch = len(self.data_loader)
+        pbar = tqdm(enumerate(self.data_loader), total=num_batch)
+        for n_iter, (imgs, pids, captions) in pbar:
+            data = imgs.to(self.device)
+            self.optimizer.zero_grad()
+            # Calculate loss
+            loss = self.model.loss(data, captions)
+            # Compute gradients
+            loss.backward()
+            # Take an optimization step
+            self.optimizer.step()
 
     @torch.no_grad()
     def infer(self,

@@ -115,7 +115,7 @@ class DDPMSampler(DiffusionSampler):
         time_steps = np.flip(self.time_steps)[skip_steps:]
 
         # Sampling loop
-        for step in monit.iterate('Sample', time_steps):
+        for step in time_steps:
             # Time step $t$
             ts = x.new_full((bs,), step, dtype=torch.long)
 

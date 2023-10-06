@@ -21,10 +21,10 @@ For a simpler diffusion implementation refer to our [DDPM implementation](../ddp
 We use same notations for $\alpha_t$, $\beta_t$ schedules, etc.
 """
 
-from typing import List
+from typing import List, Optional
 import torch
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 class DiffusionWrapper(nn.Module):
     """
@@ -76,7 +76,7 @@ class LatentDiffusion(nn.Module):
         super().__init__()
         # Wrap the [U-Net](model/unet.html) to keep the same model structure as
         # [CompVis/stable-diffusion](https://github.com/CompVis/stable-diffusion).
-        self.model = DiffusionWrapper(unet_model)
+        self.eps_model = DiffusionWrapper(unet_model)
         # Auto-encoder and scaling factor
         self.first_stage_model = autoencoder
         self.latent_scaling_factor = latent_scaling_factor
@@ -100,7 +100,7 @@ class LatentDiffusion(nn.Module):
         """
         ### Get model device
         """
-        return next(iter(self.model.parameters())).device
+        return next(iter(self.eps_model.parameters())).device
 
     def get_text_conditioning(self, prompts: List[str]):
         """
@@ -134,4 +134,48 @@ class LatentDiffusion(nn.Module):
 
         $$\epsilon_\text{cond}(x_t, c)$$
         """
-        return self.model(x, t, context)
+        return self.eps_model(x, t, context)
+
+    def loss(self, x0: torch.Tensor, captions: List, noise: Optional[torch.Tensor] = None):
+        """
+        #### Compute Loss
+
+        $$L_{\text{simple}}(\theta) = \mathbb{E}_{t,x_0, \epsilon} \Bigg[ \bigg\Vert
+        \epsilon - \textcolor{lightgreen}{\epsilon_\theta}(\sqrt{\bar\alpha_t} x_0 + \sqrt{1-\bar\alpha_t}\epsilon, t)
+        \bigg\Vert^2 \Bigg]$$
+        """
+        # Get batch size
+        batch_size = len(captions)
+        # Get random $t$ for each sample in the batch
+        t = torch.randint(0, self.n_steps, (batch_size,), device=x0.device, dtype=torch.long)
+
+        # $\epsilon \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
+        if noise is None:
+            noise = torch.randn_like(x0)
+
+        # Sample $x_t$ for $q(x_t|x_0)$
+        xt = self.q_sample(x0, t, eps=noise)
+        # Get $\textcolor{lightgreen}{\epsilon_\theta}(\sqrt{\bar\alpha_t} x_0 + \sqrt{1-\bar\alpha_t}\epsilon, t)$
+        eps_theta = self.eps_model(xt, t, captions)
+
+        # MSE loss
+        return F.mse_loss(noise, eps_theta)
+
+    def q_sample(self, x0: torch.Tensor, t: torch.Tensor, eps: Optional[torch.Tensor] = None):
+        """
+        #### Sample from $q(x_t|x_0)$
+
+        \begin{align}
+        q(x_t|x_0) &= \mathcal{N} \Big(x_t; \sqrt{\bar\alpha_t} x_0, (1-\bar\alpha_t) \mathbf{I} \Big)
+        \end{align}
+        """
+
+        # $\epsilon \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
+        if eps is None:
+            eps = torch.randn_like(x0)
+
+        # get $q(x_t|x_0)$
+        mean, var = self.q_xt_x0(x0, t)
+        # Sample from $q(x_t|x_0)$
+        return mean + (var ** 0.5) * eps
+

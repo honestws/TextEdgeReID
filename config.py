@@ -26,7 +26,7 @@ class CFG(object):
     temperature = 1.0
     projection_dim = 256
     dropout = 0.1
-    latent_dim = 256
+    latent_dim = [4, 64, 64]
     in_channels = 3
     vae_lr = 0.5e-5
     vae_betas = (0.9, 0.999)

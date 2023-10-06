@@ -77,7 +77,7 @@ if __name__ == '__main__':
         print('-' * 30 + 'Training VAE Model' + '-' * 30)
         vae.train()
         num_batch = len(plain_train_loader)
-        for e in range(CFG.epochs):
+        for e in range(CFG.epochs*3):
             loss_meter = AvgMeter()
             pbar = tqdm(enumerate(plain_train_loader), total=num_batch)
             for n_iter, (imgs, pids, captions) in pbar:

@@ -15,6 +15,11 @@ from latent.latent_diffusion import LatentDiffusion
 from latent.unet import UNetModel
 
 
+def gather(consts: torch.Tensor, t: torch.Tensor):
+    """Gather consts for $t$ and reshape to feature map shape"""
+    c = consts.gather(-1, t)
+    return c.reshape(-1, 1, 1, 1)
+
 def set_seed(seed: int):
     """
     ### Set random seeds
@@ -25,7 +30,7 @@ def set_seed(seed: int):
     torch.cuda.manual_seed_all(seed)
 
 
-def load_model(clip, vae):
+def load_model(clip, vae, latent_scaling_factor):
     """
     ### Load [`LatentDiffusion` model](latent_diffusion.html)
     """
@@ -45,7 +50,7 @@ def load_model(clip, vae):
     model = LatentDiffusion(linear_start=0.00085,
                             linear_end=0.0120,
                             n_steps=1000,
-                            latent_scaling_factor=0.18215,
+                            latent_scaling_factor=latent_scaling_factor,
                             autoencoder=vae,
                             clip_embedder=clip,
                             unet_model=eps_model)

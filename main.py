@@ -58,7 +58,6 @@ if __name__ == '__main__':
                 count = imgs.size(0)
                 loss_meter.update(loss.item(), count)
                 pbar.set_description("Epoch %d Loss: %.2f" % (e, loss_meter.avg))
-                break
             lr_scheduler.step(loss_meter.avg)
         print('-' * 30 + 'Saving CLIP Model' + '-' * 30)
         state = {
@@ -77,7 +76,7 @@ if __name__ == '__main__':
         print('-' * 30 + 'Training VAE Model' + '-' * 30)
         vae.train()
         num_batch = len(plain_train_loader)
-        for e in range(CFG.epochs*3):
+        for e in range(CFG.epochs):
             loss_meter = AvgMeter()
             pbar = tqdm(enumerate(plain_train_loader), total=num_batch)
             for n_iter, (imgs, pids, captions) in pbar:
@@ -101,7 +100,7 @@ if __name__ == '__main__':
     elif CFG.stage == 'latdiff':
         print('-' * 30 + 'Resuming from checkpoint' + '-' * 30)
         latent_diffusion_model = LatentDiffusionModel(clip_model, vae, plain_train_loader,
-                                                      CFG.diff_lr,
+                                                      CFG.scale, CFG.diff_lr,
                                                       sampler_name=CFG.sampler_name,
                                                       n_steps=CFG.steps)
         latent_diffusion_model.train()

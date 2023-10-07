@@ -2,7 +2,7 @@ import torch
 
 
 class CFG(object):
-    stage = 'vae' # clip, vae, latdiff
+    stage = 'clip' # clip, vae, latdiff
     dataset = 'RSTPReid' # 'CUHK-PEDES', 'ICFG-PDES', 'RSTPReid'
     proj_path = '/home/honestws/codes/TextEdgeReID/'
     input_size = [256, 128]
@@ -21,7 +21,7 @@ class CFG(object):
     weight_decay = 1e-4
     patience = 1
     factor = 0.8
-    epochs = 25
+    epochs = 75
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     temperature = 1.0
     projection_dim = 256

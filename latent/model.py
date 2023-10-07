@@ -12,7 +12,7 @@ import torch
 from latent.ddim import DDIMSampler
 from latent.ddpm import DDPMSampler
 from latent.latent_diffusion import LatentDiffusion
-from latent.util import load_model
+from latent.utils import load_model
 from tqdm import tqdm
 
 
@@ -26,6 +26,7 @@ class LatentDiffusionModel:
                  clip_model,
                  vae,
                  dataloader,
+                 uncond_scale: float,
                  lr: float,
                  sampler_name: str,
                  n_steps: int = 50,
@@ -42,7 +43,7 @@ class LatentDiffusionModel:
         # Create dataloader
         self.data_loader = dataloader
         # Load [latent diffusion model](../latent_diffusion.html)
-        self.model = load_model(clip_model, vae)
+        self.model = load_model(clip_model, vae, uncond_scale)
         # Create optimizer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         # Get device
@@ -66,7 +67,6 @@ class LatentDiffusionModel:
         num_batch = len(self.data_loader)
         pbar = tqdm(enumerate(self.data_loader), total=num_batch)
         for n_iter, (imgs, pids, captions) in pbar:
-            data = imgs.to(self.device)
             self.optimizer.zero_grad()
             # Calculate loss
             loss = self.model.loss(data, captions)

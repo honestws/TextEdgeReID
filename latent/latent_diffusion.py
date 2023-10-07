@@ -21,10 +21,13 @@ For a simpler diffusion implementation refer to our [DDPM implementation](../ddp
 We use same notations for $\alpha_t$, $\beta_t$ schedules, etc.
 """
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from latent.utils import gather
+
 
 class DiffusionWrapper(nn.Module):
     """
@@ -106,7 +109,7 @@ class LatentDiffusion(nn.Module):
         """
         ### Get [CLIP embeddings](model/clip_embedder.html) for a list of text prompts
         """
-        return self.cond_stage_model(prompts)
+        return self.cond_stage_model.encode_text(prompts)
 
     def autoencoder_encode(self, image: torch.Tensor):
         """
@@ -155,8 +158,14 @@ class LatentDiffusion(nn.Module):
 
         # Sample $x_t$ for $q(x_t|x_0)$
         xt = self.q_sample(x0, t, eps=noise)
+        # Unconditional embedding
+        un_cond = self.model.get_text_conditioning(batch_size * [""])
+        # Conditional embedding
+        cond = self.model.get_text_conditioning(captions)
         # Get $\textcolor{lightgreen}{\epsilon_\theta}(\sqrt{\bar\alpha_t} x_0 + \sqrt{1-\bar\alpha_t}\epsilon, t)$
-        eps_theta = self.eps_model(xt, t, captions)
+        eps_theta = self.eps_model(xt, t, cond,
+                                   uncond_scale=self.latent_scaling_factor,
+                                   uncond_cond=un_cond)
 
         # MSE loss
         return F.mse_loss(noise, eps_theta)
@@ -178,4 +187,20 @@ class LatentDiffusion(nn.Module):
         mean, var = self.q_xt_x0(x0, t)
         # Sample from $q(x_t|x_0)$
         return mean + (var ** 0.5) * eps
+
+    def q_xt_x0(self, x0: torch.Tensor, t: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        #### Get $q(x_t|x_0)$ distribution
+
+        \begin{align}
+        q(x_t|x_0) &= \mathcal{N} \Big(x_t; \sqrt{\bar\alpha_t} x_0, (1-\bar\alpha_t) \mathbf{I} \Big)
+        \end{align}
+        """
+
+        # [gather](utils.html) $\alpha_t$ and compute $\sqrt{\bar\alpha_t} x_0$
+        mean = gather(self.alpha_bar, t) ** 0.5 * x0
+        # $(1-\bar\alpha_t) \mathbf{I}$
+        var = 1 - gather(self.alpha_bar, t)
+        #
+        return mean, var
 

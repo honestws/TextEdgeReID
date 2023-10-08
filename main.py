@@ -121,6 +121,7 @@ if __name__ == '__main__':
                 loss.backward()
                 # Take an optimization step
                 optimizer.step()
+
         latent_diffusion_model.infer(dest_path='outputs',
                       prompt=opt.prompt,
                       batch_size=CFG.batch_size,

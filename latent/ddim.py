@@ -15,7 +15,9 @@ This implements DDIM sampling from the paper
 import numpy as np
 import torch
 from typing import Optional, List
-from latent import DiffusionSampler, LatentDiffusion
+
+from latent.latent_diffusion import LatentDiffusion
+from latent.sampler import DiffusionSampler
 
 
 class DDIMSampler(DiffusionSampler):

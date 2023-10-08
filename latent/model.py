@@ -9,11 +9,13 @@ summary: >
 """
 
 import torch
+
 from latent.ddim import DDIMSampler
 from latent.ddpm import DDPMSampler
 from latent.latent_diffusion import LatentDiffusion
-from latent.utils import load_model
 from tqdm import tqdm
+
+from latent.unet import UNetModel
 
 
 class LatentDiffusionModel:
@@ -68,6 +70,8 @@ class LatentDiffusionModel:
         pbar = tqdm(enumerate(self.data_loader), total=num_batch)
         for n_iter, (imgs, pids, captions) in pbar:
             self.optimizer.zero_grad()
+            # Generate data by VAE
+            data = self.model.first_stage_model.sample(len(captions))
             # Calculate loss
             loss = self.model.loss(data, captions)
             # Compute gradients
@@ -77,14 +81,12 @@ class LatentDiffusionModel:
 
     @torch.no_grad()
     def infer(self,
-              dest_path: str,
               prompt: str,
               batch_size: int = 3,
               h: int = 512, w: int = 512,
               uncond_scale: float = 7.5
               ):
         """
-        :param dest_path: is the path to store the generated images
         :param batch_size: is the number of images to generate in a batch
         :param prompt: is the prompt to generate images with
         :param h: is the height of the image
@@ -121,3 +123,33 @@ class LatentDiffusionModel:
         # Save images
         # save_images(images, dest_path, 'txt_')
 
+
+
+def load_model(clip, vae, latent_scaling_factor):
+    """
+    ### Load [`LatentDiffusion` model](latent_diffusion.html)
+    """
+
+    # Initialize the autoencoder
+    clip_checkpoint = torch.load('checkpoints/clip.pt')
+    vae_checkpoint = torch.load('checkpoints/vae.pt')
+    clip.load_state_dict(clip_checkpoint['net'])
+    vae.load_state_dict(vae_checkpoint['net'])
+    eps_model = UNetModel(in_channels=4,
+                          out_channels=4,
+                          channels=320,
+                          attention_levels=[0, 1, 2],
+                          n_res_blocks=2,
+                          channel_multipliers=[1, 2, 4, 4],
+                          n_heads=8)
+    model = LatentDiffusion(linear_start=0.00085,
+                            linear_end=0.0120,
+                            n_steps=1000,
+                            latent_scaling_factor=latent_scaling_factor,
+                            autoencoder=vae,
+                            clip_embedder=clip,
+                            unet_model=eps_model)
+
+    #
+    model.eval()
+    return model

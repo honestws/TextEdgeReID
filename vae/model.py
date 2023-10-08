@@ -133,9 +133,8 @@ class VanillaVAE(BaseVAE):
         :param z: (Tensor) [B x D]
         :return: (Tensor) [B x C x H x W]
         """
-        r = self.decoder_input(z)
-        lat = self.decoder[:1](r)
-        r = self.decoder[1:](lat)
+        lat = self.decoder_input(z)
+        r = self.decoder(lat)
         r = self.final_layer(r)
         return lat, r
 

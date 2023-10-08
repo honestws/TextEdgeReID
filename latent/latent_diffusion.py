@@ -26,6 +26,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from clip import clip
 from latent.utils import gather
 
 
@@ -64,6 +65,7 @@ class LatentDiffusion(nn.Module):
                  n_steps: int,
                  linear_start: float,
                  linear_end: float,
+                 device: str
                  ):
         """
         :param unet_model: is the [U-Net](model/unet.html) that predicts noise
@@ -85,6 +87,8 @@ class LatentDiffusion(nn.Module):
         self.latent_scaling_factor = latent_scaling_factor
         # [CLIP embeddings generator](model/clip_embedder.html)
         self.cond_stage_model = clip_embedder
+
+        self.device_ = device
 
         # Number of steps $T$
         self.n_steps = n_steps
@@ -109,7 +113,8 @@ class LatentDiffusion(nn.Module):
         """
         ### Get [CLIP embeddings](model/clip_embedder.html) for a list of text prompts
         """
-        return self.cond_stage_model.encode_text(prompts)
+        txts = clip.tokenize(prompts, truncate=True).to(self.device_)
+        return self.cond_stage_model.model.encode_text(txts)[1]
 
     def autoencoder_encode(self, image: torch.Tensor):
         """
@@ -152,23 +157,50 @@ class LatentDiffusion(nn.Module):
         # Get random $t$ for each sample in the batch
         t = torch.randint(0, self.n_steps, (batch_size,), device=x0.device, dtype=torch.long)
 
-        # $\epsilon \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
-        if noise is None:
-            noise = torch.randn_like(x0)
-
         # Sample $x_t$ for $q(x_t|x_0)$
         xt = self.q_sample(x0, t, eps=noise)
         # Unconditional embedding
-        un_cond = self.model.get_text_conditioning(batch_size * [""])
+        un_cond = self.get_text_conditioning(batch_size * [""])
         # Conditional embedding
-        cond = self.model.get_text_conditioning(captions)
+        cond = self.get_text_conditioning(captions)
         # Get $\textcolor{lightgreen}{\epsilon_\theta}(\sqrt{\bar\alpha_t} x_0 + \sqrt{1-\bar\alpha_t}\epsilon, t)$
-        eps_theta = self.eps_model(xt, t, cond,
+        eps_theta = self.get_eps(xt, t, cond,
                                    uncond_scale=self.latent_scaling_factor,
                                    uncond_cond=un_cond)
 
         # MSE loss
         return F.mse_loss(noise, eps_theta)
+
+    def get_eps(self, x: torch.Tensor, t: torch.Tensor, c: torch.Tensor, *,
+                uncond_scale: float, uncond_cond: Optional[torch.Tensor]):
+        """
+        ## Get $\epsilon(x_t, c)$
+
+        :param x: is $x_t$ of shape `[batch_size, channels, height, width]`
+        :param t: is $t$ of shape `[batch_size]`
+        :param c: is the conditional embeddings $c$ of shape `[batch_size, emb_size]`
+        :param uncond_scale: is the unconditional guidance scale $s$. This is used for
+            $\epsilon_\theta(x_t, c) = s\epsilon_\text{cond}(x_t, c) + (s - 1)\epsilon_\text{cond}(x_t, c_u)$
+        :param uncond_cond: is the conditional embedding for empty prompt $c_u$
+        """
+        # When the scale $s = 1$
+        # $$\epsilon_\theta(x_t, c) = \epsilon_\text{cond}(x_t, c)$$
+        if uncond_cond is None or uncond_scale == 1.:
+            return self.eps_model(x, t, c)
+
+        # Duplicate $x_t$ and $t$
+        x_in = torch.cat([x] * 2)
+        t_in = torch.cat([t] * 2)
+        # Concatenated $c$ and $c_u$
+        c_in = torch.cat([uncond_cond, c])
+        # Get $\epsilon_\text{cond}(x_t, c)$ and $\epsilon_\text{cond}(x_t, c_u)$
+        e_t_uncond, e_t_cond = self.eps_model(x_in, t_in, c_in).chunk(2)
+        # Calculate
+        # $$\epsilon_\theta(x_t, c) = s\epsilon_\text{cond}(x_t, c) + (s - 1)\epsilon_\text{cond}(x_t, c_u)$$
+        e_t = e_t_uncond + uncond_scale * (e_t_cond - e_t_uncond)
+
+        #
+        return e_t
 
     def q_sample(self, x0: torch.Tensor, t: torch.Tensor, eps: Optional[torch.Tensor] = None):
         """

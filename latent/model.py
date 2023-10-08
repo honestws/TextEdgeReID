@@ -27,25 +27,22 @@ class LatentDiffusionModel:
     def __init__(self,
                  clip_model,
                  vae,
-                 dataloader,
                  uncond_scale: float,
-                 lr: float,
+                 device: str,
                  sampler_name: str,
                  n_steps: int = 50,
-                 ddim_eta: float = 0.0,
+                 ddim_eta: float = 0.0
                  ):
         """
         :param clip_model: clip model
         :param vae: autoencoder
-        :param lr: learning rate
+        :param device: CUDA device
         :param sampler_name: is the name of the [sampler](../sampler/index.html)
         :param n_steps: is the number of sampling steps
         :param ddim_eta: is the [DDIM sampling](../sampler/ddim.html) $\eta$ constant
         """
-        # Create dataloader
-        self.data_loader = dataloader
         # Load [latent diffusion model](../latent_diffusion.html)
-        self.model = load_model(clip_model, vae, uncond_scale)
+        self.model = load_model(clip_model, vae, uncond_scale, device)
         # Create optimizer
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         # Get device
@@ -125,7 +122,7 @@ class LatentDiffusionModel:
 
 
 
-def load_model(clip, vae, latent_scaling_factor):
+def load_model(clip, vae, scale, device):
     """
     ### Load [`LatentDiffusion` model](latent_diffusion.html)
     """
@@ -145,10 +142,11 @@ def load_model(clip, vae, latent_scaling_factor):
     model = LatentDiffusion(linear_start=0.00085,
                             linear_end=0.0120,
                             n_steps=1000,
-                            latent_scaling_factor=latent_scaling_factor,
+                            latent_scaling_factor=scale,
                             autoencoder=vae,
                             clip_embedder=clip,
-                            unet_model=eps_model)
+                            unet_model=eps_model,
+                            device=device)
 
     #
     model.eval()

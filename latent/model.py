@@ -7,6 +7,7 @@ summary: >
 
 # Generate images using [stable diffusion](../index.html) with a prompt
 """
+import json
 from collections import OrderedDict
 
 import torch
@@ -115,17 +116,26 @@ def load_model(clip_transformer, vae_decoder, scale, device):
     for key, val in clip_checkpoint['net'].items():
         if 'model.transformer.' in key:
             clip_transformer_dict.update({key.split('model.transformer.')[1]: val})
+        if 'model.ln_final' in key:
+            clip_transformer_dict.update({key.split('model.')[1]: val})
     vae_checkpoint = torch.load('checkpoints/vae.pt')
     vae_dict = OrderedDict()
     for key, val in vae_checkpoint['net'].items():
         if 'decoder_input.' in key:
             vae_dict.update({key.split('decoder_input.')[1]: val})
-    clip_transformer.load_state_dict(clip_transformer_dict)
-
+    clip_transformer.load_state_dict(clip_transformer_dict, strict=False)
+    with open('params.json') as file:
+        json_data = json.load(file)
+    vocab_size = json_data['vocab_size']
+    transformer_width = json_data['transformer_width']
+    embed_dim = json_data['embed_dim']
     token_embedding = nn.Embedding(vocab_size, transformer_width)
-    positional_embedding = nn.Parameter(torch.empty(context_length, transformer_width))
+    token_embedding.weight.data = clip_checkpoint['net']['model.token_embedding.weight']
+    positional_embedding = nn.Parameter(clip_checkpoint['net']['model.positional_embedding'])
     ln_final = LayerNorm(transformer_width)
+    ln_final.load_state_dict(clip_transformer_dict, strict=False)
     text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
+    text_projection.lo
 
     vae_decoder.load_state_dict(vae_dict)
     eps_model = UNetModel(in_channels=4,

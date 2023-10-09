@@ -431,9 +431,9 @@ def build_model(state_dict: dict):
 
     d = {'vocab_size': vocab_size, 'transformer_width': transformer_width,
          'context_length': context_length, 'embed_dim': embed_dim}
-    json_str = json.dumps(d)
+    json_data = json.dumps(d)
     with open('params.json', 'w', encoding='utf-8') as file:
-        file.write(json_str)
+        file.write(json_data)
 
     for key in ["input_resolution", "context_length", "vocab_size"]:
         if key in state_dict:

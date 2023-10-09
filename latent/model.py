@@ -44,7 +44,6 @@ class LatentDiffusionModel:
         # Load [latent diffusion model](../latent_diffusion.html)
         self.model = load_model(clip_model, vae, uncond_scale, device)
         # Create optimizer
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
         # Get device
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         # Move the model to device
@@ -57,24 +56,6 @@ class LatentDiffusionModel:
                                        ddim_eta=ddim_eta)
         elif sampler_name == 'ddpm':
             self.sampler = DDPMSampler(self.model)
-
-    def train(self):
-        """
-        ### Train
-        """
-        # Iterate through the dataset
-        num_batch = len(self.data_loader)
-        pbar = tqdm(enumerate(self.data_loader), total=num_batch)
-        for n_iter, (imgs, pids, captions) in pbar:
-            self.optimizer.zero_grad()
-            # Generate data by VAE
-            data = self.model.first_stage_model.sample(len(captions))
-            # Calculate loss
-            loss = self.model.loss(data, captions)
-            # Compute gradients
-            loss.backward()
-            # Take an optimization step
-            self.optimizer.step()
 
     @torch.no_grad()
     def infer(self,

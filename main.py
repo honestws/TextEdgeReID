@@ -99,12 +99,12 @@ if __name__ == '__main__':
 
     elif CFG.stage == 'latdiff':
         print('-' * 30 + 'Resuming from checkpoint' + '-' * 30)
-        latent_diffusion_model = LatentDiffusionModel(clip_model, vae,
-                                                      CFG.scale,
-                                                      device = CFG.device,
-                                                      sampler_name=CFG.sampler_name,
-                                                      n_steps=CFG.steps)
-        optimizer = torch.optim.Adam(latent_diffusion_model.parameters(), lr=CFG.diff_lr)
+        diffusion = LatentDiffusionModel(clip_model, vae,
+                                         CFG.scale,
+                                         device = CFG.device,
+                                         sampler_name=CFG.sampler_name,
+                                         n_steps=CFG.steps)
+        optimizer = torch.optim.Adam(diffusion.model.parameters(), lr=CFG.diff_lr)
         for e in range(CFG.epochs):
             loss_meter = AvgMeter()
             num_batch = len(plain_train_loader)
@@ -112,17 +112,17 @@ if __name__ == '__main__':
             for n_iter, (imgs, pids, captions) in pbar:
                 optimizer.zero_grad()
                 # Generate data by VAE
-                x0 = latent_diffusion_model.first_stage_model.sample(len(captions))
+                x0 = diffusion.model.first_stage_model.sample(len(captions))
                 # $\epsilon \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
                 noise = torch.randn_like(x0)
                 # Calculate loss
-                loss = latent_diffusion_model.loss(x0, captions, noise)
+                loss = diffusion.model.loss(x0, captions, noise)
                 # Compute gradients
                 loss.backward()
                 # Take an optimization step
                 optimizer.step()
 
-        latent_diffusion_model.infer(dest_path='outputs',
+        diffusion.infer(dest_path='outputs',
                       prompt=opt.prompt,
                       batch_size=CFG.batch_size,
                       uncond_scale=CFG.scale)

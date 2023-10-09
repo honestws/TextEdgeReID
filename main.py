@@ -99,11 +99,10 @@ if __name__ == '__main__':
 
     elif CFG.stage == 'latdiff':
         print('-' * 30 + 'Resuming from checkpoint' + '-' * 30)
-        diffusion = LatentDiffusionModel(clip_model, vae,
-                                         CFG.scale,
-                                         device = CFG.device,
-                                         sampler_name=CFG.sampler_name,
-                                         n_steps=CFG.steps)
+        clip_transformer = clip_model.model.transformer
+        vae_decoder = vae.decoder_input
+        diffusion = LatentDiffusionModel(clip_transformer, vae_decoder, CFG.scale, device=CFG.device,
+                                         sampler_name=CFG.sampler_name, n_steps=CFG.steps)
         optimizer = torch.optim.Adam(diffusion.model.parameters(), lr=CFG.diff_lr)
         for e in range(CFG.epochs):
             loss_meter = AvgMeter()

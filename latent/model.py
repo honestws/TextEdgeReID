@@ -7,14 +7,13 @@ summary: >
 
 # Generate images using [stable diffusion](../index.html) with a prompt
 """
+from collections import OrderedDict
 
 import torch
 
 from latent.ddim import DDIMSampler
 from latent.ddpm import DDPMSampler
 from latent.latent_diffusion import LatentDiffusion
-from tqdm import tqdm
-
 from latent.unet import UNetModel
 
 
@@ -25,8 +24,8 @@ class LatentDiffusionModel:
     model: LatentDiffusion
 
     def __init__(self,
-                 clip_model,
-                 vae,
+                 clip_transformer,
+                 vae_decoder,
                  uncond_scale: float,
                  device: str,
                  sampler_name: str,
@@ -34,15 +33,15 @@ class LatentDiffusionModel:
                  ddim_eta: float = 0.0
                  ):
         """
-        :param clip_model: clip model
-        :param vae: autoencoder
+        :param clip_transformer: clip model
+        :param vae_decoder: autoencoder
         :param device: CUDA device
         :param sampler_name: is the name of the [sampler](../sampler/index.html)
         :param n_steps: is the number of sampling steps
         :param ddim_eta: is the [DDIM sampling](../sampler/ddim.html) $\eta$ constant
         """
         # Load [latent diffusion model](../latent_diffusion.html)
-        self.model = load_model(clip_model, vae, uncond_scale, device)
+        self.model = load_model(clip_transformer, vae_decoder, uncond_scale, device)
         # Create optimizer
         # Get device
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
@@ -103,16 +102,24 @@ class LatentDiffusionModel:
 
 
 
-def load_model(clip, vae, scale, device):
+def load_model(clip_transformer, vae_decoder, scale, device):
     """
     ### Load [`LatentDiffusion` model](latent_diffusion.html)
     """
 
     # Initialize the autoencoder
     clip_checkpoint = torch.load('checkpoints/clip.pt')
+    clip_transformer_dict = OrderedDict()
+    for key, val in clip_checkpoint['net'].items():
+        if 'model.transformer.' in key:
+            clip_transformer_dict.update({key.split('model.transformer.')[1]: val})
     vae_checkpoint = torch.load('checkpoints/vae.pt')
-    clip.load_state_dict(clip_checkpoint['net'])
-    vae.load_state_dict(vae_checkpoint['net'])
+    vae_dict = OrderedDict()
+    for key, val in vae_checkpoint['net'].items():
+        if 'decoder_input.' in key:
+            vae_dict.update({key.split('decoder_input.')[1]: val})
+    clip_transformer.load_state_dict(clip_transformer_dict)
+    vae_decoder.load_state_dict(vae_dict)
     eps_model = UNetModel(in_channels=4,
                           out_channels=4,
                           channels=320,
@@ -124,8 +131,8 @@ def load_model(clip, vae, scale, device):
                             linear_end=0.0120,
                             n_steps=1000,
                             latent_scaling_factor=scale,
-                            autoencoder=vae,
-                            clip_embedder=clip,
+                            autoencoder=vae_decoder,
+                            clip_embedder=clip_transformer,
                             unet_model=eps_model,
                             device=device)
 

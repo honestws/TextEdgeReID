@@ -1,6 +1,8 @@
 # from typing import TypeVar
 # from torch import tensor as Tensor
 # Tensor = TypeVar('torch.tensor')
+from typing import List
+
 import torch
 
 
@@ -118,3 +120,18 @@ class AvgMeter:
     def __repr__(self):
         text = f"{self.name}: {self.avg:.4f}"
         return text
+
+def sample(num_samples:int, latent_dim: List, device: str):
+    """
+    Samples from the latent space and return the corresponding
+    image space map.
+    :param num_samples: (Int) Number of samples
+    :param latent_dim: (List) Latent dimension
+    :param device: (Str) CUDA device
+    :return: (Tensor)
+    """
+    z = torch.randn(num_samples, *latent_dim)
+
+    z = z.to(device)
+
+    return z

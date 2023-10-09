@@ -59,8 +59,8 @@ class LatentDiffusion(nn.Module):
 
     def __init__(self,
                  unet_model,
-                 autoencoder,
-                 clip_embedder,
+                 vae_decoder,
+                 clip_transformer,
                  latent_scaling_factor: float,
                  n_steps: int,
                  linear_start: float,
@@ -70,8 +70,8 @@ class LatentDiffusion(nn.Module):
         """
         :param unet_model: is the [U-Net](model/unet.html) that predicts noise
          $\epsilon_\text{cond}(x_t, c)$, in latent space
-        :param autoencoder: is the [AutoEncoder](model/autoencoder.html)
-        :param clip_embedder: is the [CLIP embeddings generator](model/clip_embedder.html)
+        :param vae_decoder: is the decoder from [AutoEncoder]
+        :param clip_transformer: is the [CLIP embeddings generator](model/clip_embedder.html)
         :param latent_scaling_factor: is the scaling factor for the latent space. The encodings of
          the autoencoder are scaled by this before feeding into the U-Net.
         :param n_steps: is the number of diffusion steps $T$.
@@ -83,10 +83,10 @@ class LatentDiffusion(nn.Module):
         # [CompVis/stable-diffusion](https://github.com/CompVis/stable-diffusion).
         self.eps_model = DiffusionWrapper(unet_model)
         # Auto-encoder and scaling factor
-        self.first_stage_model = autoencoder
+        self.vae_decoder = vae_decoder
         self.latent_scaling_factor = latent_scaling_factor
-        # [CLIP embeddings generator](model/clip_embedder.html)
-        self.cond_stage_model = clip_embedder
+        # [CLIP transformer](model/clip_embedder.html)
+        self.clip_transformer = clip_transformer
 
         self.device_ = device
 
@@ -114,24 +114,7 @@ class LatentDiffusion(nn.Module):
         ### Get [CLIP embeddings](model/clip_embedder.html) for a list of text prompts
         """
         txts = clip.tokenize(prompts, truncate=True).to(self.device_)
-        return self.cond_stage_model.model.encode_text(txts)[1]
-
-    def autoencoder_encode(self, image: torch.Tensor):
-        """
-        ### Get scaled latent space representation of the image
-
-        The encoder output is a distribution.
-        We sample from that and multiply by the scaling factor.
-        """
-        return self.latent_scaling_factor * self.first_stage_model.encode(image).sample()
-
-    def autoencoder_decode(self, z: torch.Tensor):
-        """
-        ### Get image from the latent representation
-
-        We scale down by the scaling factor and then decode.
-        """
-        return self.first_stage_model.decode(z / self.latent_scaling_factor)
+        return self.clip_transformer(txts)
 
     def forward(self, x: torch.Tensor, t: torch.Tensor, context: torch.Tensor):
         """

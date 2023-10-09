@@ -9,7 +9,7 @@ from config import CFG
 from dataset import create_dataloader
 from latent.model import LatentDiffusionModel
 from parsejson import dataparse
-from utils import AvgMeter
+from utils import AvgMeter, sample
 from vae.model import VanillaVAE
 
 if __name__ == '__main__':
@@ -111,7 +111,8 @@ if __name__ == '__main__':
             for n_iter, (imgs, pids, captions) in pbar:
                 optimizer.zero_grad()
                 # Generate data by VAE
-                x0 = diffusion.model.first_stage_model.sample(len(captions))
+                noise = sample(len(captions), CFG.latent_dim, CFG.device)
+                x0 = diffusion.model.vae_decoder(noise)
                 # $\epsilon \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
                 noise = torch.randn_like(x0)
                 # Calculate loss

@@ -127,13 +127,8 @@ def load_model(clip_transformer, vae_decoder, scale, device):
                           n_res_blocks=2,
                           channel_multipliers=[1, 2, 4, 4],
                           n_heads=8)
-    model = LatentDiffusion(linear_start=0.00085,
-                            linear_end=0.0120,
-                            n_steps=1000,
-                            latent_scaling_factor=scale,
-                            autoencoder=vae_decoder,
-                            clip_embedder=clip_transformer,
-                            unet_model=eps_model,
+    model = LatentDiffusion(unet_model=eps_model, vae_decoder=vae_decoder, clip_transformer=clip_transformer,
+                            latent_scaling_factor=scale, n_steps=1000, linear_start=0.00085, linear_end=0.0120,
                             device=device)
 
     #

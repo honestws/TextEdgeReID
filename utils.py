@@ -5,7 +5,6 @@ from typing import List
 
 import torch
 
-
 def euclidean_dist(x, y):
     """
     Args:

@@ -1,3 +1,4 @@
+import json
 from collections import OrderedDict
 from typing import Tuple, Union
 from clip import clip
@@ -427,6 +428,12 @@ def build_model(state_dict: dict):
         image_resolution, vision_layers, vision_width, vision_patch_size,
         context_length, vocab_size, transformer_width, transformer_heads, transformer_layers
     )
+
+    d = {'vocab_size': vocab_size, 'transformer_width': transformer_width,
+         'context_length': context_length, 'embed_dim': embed_dim}
+    json_str = json.dumps(d)
+    with open('params.json', 'w', encoding='utf-8') as file:
+        file.write(json_str)
 
     for key in ["input_resolution", "context_length", "vocab_size"]:
         if key in state_dict:

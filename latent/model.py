@@ -10,7 +10,9 @@ summary: >
 from collections import OrderedDict
 
 import torch
+from torch import nn
 
+from clip.model import LayerNorm
 from latent.ddim import DDIMSampler
 from latent.ddpm import DDPMSampler
 from latent.latent_diffusion import LatentDiffusion
@@ -119,6 +121,12 @@ def load_model(clip_transformer, vae_decoder, scale, device):
         if 'decoder_input.' in key:
             vae_dict.update({key.split('decoder_input.')[1]: val})
     clip_transformer.load_state_dict(clip_transformer_dict)
+
+    token_embedding = nn.Embedding(vocab_size, transformer_width)
+    positional_embedding = nn.Parameter(torch.empty(context_length, transformer_width))
+    ln_final = LayerNorm(transformer_width)
+    text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
+
     vae_decoder.load_state_dict(vae_dict)
     eps_model = UNetModel(in_channels=4,
                           out_channels=4,

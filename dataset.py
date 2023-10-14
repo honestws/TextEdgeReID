@@ -5,12 +5,19 @@ from torch.utils.data import Dataset, DataLoader, TensorDataset
 from sampler import RandomIdentitySampler
 from PIL import Image
 
-def collate_fn(batch):
+def edge_collate_fn(batch):
     imgs, pids, captions = zip(*batch)
     _captions = []
     for c in captions:
         _captions += c
     return torch.cat(imgs, dim=0), torch.cat(pids, dim=0), _captions
+
+def server_collate_fn(batch):
+    embedings, pids, txts = zip(*batch)
+    captions = []
+    for t in txts:
+        captions += t
+    return torch.cat(embedings, dim=0), torch.cat(pids, dim=0), captions
 
 def read_image(img_path):
     """Keep reading image until succeed.
@@ -45,14 +52,16 @@ class ImageTextDataset(Dataset):
         return [imgs, pids, captions]
 
 class LatentDataset(TensorDataset):
-    def __init__(self, *args):
+    def __init__(self, personids, texts, *args):
         super(LatentDataset, self).__init__(args)
+        self.pids = personids
+        self.txts = texts
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.tensors[0])
 
     def __getitem__(self, index):
-        return tuple(tensor[index] for tensor in self.tensors[:-1]), self.tensors[-1][index].long()
+        return [tensor[index] for tensor in self.tensors] + [self.pids[index], self.txts[index]]
 
 class CUHKPEDES(object):
     """
@@ -149,13 +158,13 @@ __factory = {
     'RSTPReid': RSTPReid
 }
 
-def create_dataloader(CFG, train_list, test_list, triplet_transform):
+def edge_dataloaders(CFG, train_list, test_list, triplet_transform):
     dataset = __factory[CFG.dataset](train_list, test_list)
     tri_train_set = ImageTextDataset(dataset.train, triplet_transform)
     triplet_train_loader = DataLoader(
         tri_train_set, batch_size=CFG.batch_size,
         sampler=RandomIdentitySampler(dataset.train, CFG.batch_size, CFG.num_instances),
-        num_workers=CFG.num_workers, collate_fn=collate_fn
+        num_workers=CFG.num_workers, collate_fn=edge_collate_fn
     )
     setattr(triplet_train_loader, 'number_cls', dataset.number_cls)
     vae_transform = T.Compose([
@@ -168,19 +177,21 @@ def create_dataloader(CFG, train_list, test_list, triplet_transform):
     ])
     vae_train_set = ImageTextDataset(dataset.train + dataset.test, vae_transform)
     vae_train_loader = DataLoader(vae_train_set, batch_size=CFG.batch_size*4,
-                                    shuffle=True, num_workers=CFG.num_workers,
-                                    collate_fn=collate_fn)
-    setattr(vae_train_loader, 'number_cls', dataset.number_cls)
-
-    latent_train_set = ImageTextDataset(dataset.train + dataset.test, vae_transform)
-    latent_train_loader = DataLoader(latent_train_set, batch_size=CFG.batch_size // 16,
                                   shuffle=True, num_workers=CFG.num_workers,
-                                  collate_fn=collate_fn)
-    setattr(latent_train_loader, 'number_cls', dataset.number_cls)
-
+                                  collate_fn=edge_collate_fn)
+    setattr(vae_train_loader, 'number_cls', dataset.number_cls)
     val_set = ImageTextDataset(dataset.test, triplet_transform)
     test_loader = DataLoader(
-        val_set, batch_size=CFG.batch_size*4, shuffle=False, num_workers=CFG.num_workers, collate_fn=collate_fn
+        val_set, batch_size=CFG.batch_size*4, shuffle=False, num_workers=CFG.num_workers, collate_fn=edge_collate_fn
     )
 
-    return triplet_train_loader, vae_train_loader, latent_train_loader, test_loader
+    return triplet_train_loader, vae_train_loader, test_loader
+
+def server_dataloader(CFG):
+    d = torch.load('./checkpoints/embedings.pt')
+    latent_train_set = LatentDataset(d['personids'], d['texts'], d['embedings'])
+    uncond_embedding = d['uncond_embeddings']
+    latent_train_loader = DataLoader(latent_train_set, batch_size=CFG.batch_size // 2,
+                                     shuffle=True, num_workers=CFG.num_workers,
+                                     collate_fn=server_collate_fn)
+    return latent_train_loader, uncond_embedding

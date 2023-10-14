@@ -6,7 +6,7 @@ from torch.cuda import amp
 from clip import clip
 from clip.model import CLIPModel
 from config import CFG
-from dataset import create_dataloader
+from dataset import edge_dataloaders, server_dataloader
 from latent.model import LatentDiffusionModel
 from parsejson import dataparse
 from utils import AvgMeter, sample
@@ -17,8 +17,8 @@ if __name__ == '__main__':
     clip_model = CLIPModel(CFG).float()
     vae = VanillaVAE(CFG.in_channels, CFG.latent_dim)
     transform = clip_model.preprocess
-    triplet_train_loader, vae_train_loader, latent_train_loader, test_loader = \
-        create_dataloader(CFG, train_dict, test_dict, transform)
+    triplet_train_loader, vae_train_loader, test_loader = \
+        edge_dataloaders(CFG, train_dict, test_dict, transform)
     if CFG.stage == 'clip':
         clip_model = clip_model.to(CFG.device)
         params = [
@@ -69,15 +69,15 @@ if __name__ == '__main__':
             for n_iter, (imgs, pids, captions) in pbar:
                 txts = clip.tokenize(captions, truncate=True).to(CFG.device)
                 _, embeding = clip_model.model.encode_text(txts)
-                embeddings.append(embeding.detach().cpu())
-                texts.append(captions)
+                embeddings.append(embeding)
+                texts += captions
                 personids.append(pids)
 
         d = {
             'embedings': torch.cat(embeddings, dim=0),
-            'personids': personids,
+            'personids': torch.cat(personids, dim=0),
             'texts': texts,
-             'uncond_embeddings': uncond_embedding
+             'uncond_embedding': uncond_embedding
         }
         if not os.path.isdir('checkpoints'):
             os.mkdir('checkpoints')
@@ -113,24 +113,25 @@ if __name__ == '__main__':
         torch.save(state, './checkpoints/' + CFG.stage + '.pt')
 
     elif CFG.stage == 'latdiff':
-        print('-' * 30 + 'Resuming from checkpoint' + '-' * 30)
+        print('-' * 30 + 'Traning Latent Diffusion Model' + '-' * 30)
         vae_decoder = vae.decoder_input
         diffusion = LatentDiffusionModel(vae_decoder, CFG.scale, device=CFG.device,
                                          sampler_name=CFG.sampler_name, n_steps=CFG.steps)
+        latent_train_loader, uncond_embedding = server_dataloader(CFG)
         optimizer = torch.optim.Adam(diffusion.model.parameters(), lr=CFG.diff_lr)
         for e in range(CFG.epochs):
             loss_meter = AvgMeter()
             num_batch = len(latent_train_loader)
             pbar = tqdm(enumerate(latent_train_loader), total=num_batch)
-            for n_iter, (imgs, pids, captions) in pbar:
+            for n_iter, (embeddings, pids, captions) in pbar:
                 optimizer.zero_grad()
-                # Generate data by VAE
+                # Generate data by VAE decoder
                 noise = sample(len(captions), CFG.latent_dim, CFG.device)
                 x0 = diffusion.model.vae_decoder(noise)
                 # $\epsilon \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
                 noise = torch.randn_like(x0)
                 # Calculate loss
-                loss = diffusion.model.loss(x0, embeding, noise)
+                loss = diffusion.model.loss(x0, embeddings, uncond_embedding, noise)
                 # Compute gradients
                 loss.backward()
                 # Take an optimization step

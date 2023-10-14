@@ -124,7 +124,8 @@ class LatentDiffusion(nn.Module):
         """
         return self.eps_model(x, t, context)
 
-    def loss(self, x0: torch.Tensor, captions: List, noise: Optional[torch.Tensor] = None):
+    def loss(self, x0: torch.Tensor, embeddings: torch.Tensor,
+             uncond_embedding: torch.Tensor, noise: Optional[torch.Tensor] = None):
         """
         #### Compute Loss
 
@@ -133,18 +134,16 @@ class LatentDiffusion(nn.Module):
         \bigg\Vert^2 \Bigg]$$
         """
         # Get batch size
-        batch_size = len(captions)
+        batch_size = embeddings.shape[0]
         # Get random $t$ for each sample in the batch
         t = torch.randint(0, self.n_steps, (batch_size,), device=x0.device, dtype=torch.long)
 
         # Sample $x_t$ for $q(x_t|x_0)$
         xt = self.q_sample(x0, t, eps=noise)
         # Unconditional embedding
-        un_cond = self.get_text_conditioning(batch_size * [""])
-        # Conditional embedding
-        cond = self.get_text_conditioning(captions)
+        un_cond = uncond_embedding.repeat(batch_size, 1)
         # Get $\textcolor{lightgreen}{\epsilon_\theta}(\sqrt{\bar\alpha_t} x_0 + \sqrt{1-\bar\alpha_t}\epsilon, t)$
-        eps_theta = self.get_eps(xt, t, cond,
+        eps_theta = self.get_eps(xt, t, embeddings,
                                    uncond_scale=self.latent_scaling_factor,
                                    uncond_cond=un_cond)
 

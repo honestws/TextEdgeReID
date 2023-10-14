@@ -60,7 +60,6 @@ class LatentDiffusion(nn.Module):
     def __init__(self,
                  unet_model,
                  vae_decoder,
-                 clip_transformer,
                  latent_scaling_factor: float,
                  n_steps: int,
                  linear_start: float,
@@ -71,7 +70,6 @@ class LatentDiffusion(nn.Module):
         :param unet_model: is the [U-Net](model/unet.html) that predicts noise
          $\epsilon_\text{cond}(x_t, c)$, in latent space
         :param vae_decoder: is the decoder from [AutoEncoder]
-        :param clip_transformer: is the [CLIP embeddings generator](model/clip_embedder.html)
         :param latent_scaling_factor: is the scaling factor for the latent space. The encodings of
          the autoencoder are scaled by this before feeding into the U-Net.
         :param n_steps: is the number of diffusion steps $T$.
@@ -86,7 +84,6 @@ class LatentDiffusion(nn.Module):
         self.vae_decoder = vae_decoder
         self.latent_scaling_factor = latent_scaling_factor
         # [CLIP transformer](model/clip_embedder.html)
-        self.clip_transformer = clip_transformer
 
         self.device_ = device
 
@@ -114,7 +111,7 @@ class LatentDiffusion(nn.Module):
         ### Get [CLIP embeddings](model/clip_embedder.html) for a list of text prompts
         """
         txts = clip.tokenize(prompts, truncate=True).to(self.device_)
-        return self.clip_transformer(txts)
+        return self.text_encoder(txts)[1]
 
     def forward(self, x: torch.Tensor, t: torch.Tensor, context: torch.Tensor):
         """

@@ -1,7 +1,7 @@
 import torch
 import os.path as osp
 import torchvision.transforms as T
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, TensorDataset
 from sampler import RandomIdentitySampler
 from PIL import Image
 
@@ -44,6 +44,15 @@ class ImageTextDataset(Dataset):
 
         return [imgs, pids, captions]
 
+class LatentDataset(TensorDataset):
+    def __init__(self, *args):
+        super(LatentDataset, self).__init__(args)
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        return tuple(tensor[index] for tensor in self.tensors[:-1]), self.tensors[-1][index].long()
 
 class CUHKPEDES(object):
     """
@@ -140,7 +149,6 @@ __factory = {
     'RSTPReid': RSTPReid
 }
 
-
 def create_dataloader(CFG, train_list, test_list, triplet_transform):
     dataset = __factory[CFG.dataset](train_list, test_list)
     tri_train_set = ImageTextDataset(dataset.train, triplet_transform)
@@ -150,7 +158,7 @@ def create_dataloader(CFG, train_list, test_list, triplet_transform):
         num_workers=CFG.num_workers, collate_fn=collate_fn
     )
     setattr(triplet_train_loader, 'number_cls', dataset.number_cls)
-    plain_transform = T.Compose([
+    vae_transform = T.Compose([
         T.Resize([256, 128], interpolation=3),
         T.RandomHorizontalFlip(),
         T.Pad(10),
@@ -158,14 +166,21 @@ def create_dataloader(CFG, train_list, test_list, triplet_transform):
         T.ToTensor(),
         T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     ])
-    plain_train_set = ImageTextDataset(dataset.train + dataset.test, plain_transform)
-    plain_train_loader = DataLoader(plain_train_set, batch_size=CFG.batch_size*4,
+    vae_train_set = ImageTextDataset(dataset.train + dataset.test, vae_transform)
+    vae_train_loader = DataLoader(vae_train_set, batch_size=CFG.batch_size*4,
                                     shuffle=True, num_workers=CFG.num_workers,
                                     collate_fn=collate_fn)
-    setattr(plain_train_loader, 'number_cls', dataset.number_cls)
+    setattr(vae_train_loader, 'number_cls', dataset.number_cls)
+
+    latent_train_set = ImageTextDataset(dataset.train + dataset.test, vae_transform)
+    latent_train_loader = DataLoader(latent_train_set, batch_size=CFG.batch_size // 16,
+                                  shuffle=True, num_workers=CFG.num_workers,
+                                  collate_fn=collate_fn)
+    setattr(latent_train_loader, 'number_cls', dataset.number_cls)
+
     val_set = ImageTextDataset(dataset.test, triplet_transform)
     test_loader = DataLoader(
         val_set, batch_size=CFG.batch_size*4, shuffle=False, num_workers=CFG.num_workers, collate_fn=collate_fn
     )
 
-    return triplet_train_loader, plain_train_loader, test_loader
+    return triplet_train_loader, vae_train_loader, latent_train_loader, test_loader

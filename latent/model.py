@@ -7,13 +7,8 @@ summary: >
 
 # Generate images using [stable diffusion](../index.html) with a prompt
 """
-import json
-from collections import OrderedDict
-
 import torch
-from torch import nn
-
-from clip.model import LayerNorm
+from collections import OrderedDict
 from latent.ddim import DDIMSampler
 from latent.ddpm import DDPMSampler
 from latent.latent_diffusion import LatentDiffusion
@@ -27,7 +22,6 @@ class LatentDiffusionModel:
     model: LatentDiffusion
 
     def __init__(self,
-                 clip_transformer,
                  vae_decoder,
                  uncond_scale: float,
                  device: str,
@@ -36,7 +30,6 @@ class LatentDiffusionModel:
                  ddim_eta: float = 0.0
                  ):
         """
-        :param clip_transformer: clip model
         :param vae_decoder: autoencoder
         :param device: CUDA device
         :param sampler_name: is the name of the [sampler](../sampler/index.html)
@@ -44,11 +37,11 @@ class LatentDiffusionModel:
         :param ddim_eta: is the [DDIM sampling](../sampler/ddim.html) $\eta$ constant
         """
         # Load [latent diffusion model](../latent_diffusion.html)
-        self.model = load_model(clip_transformer, vae_decoder, uncond_scale, device)
+        self.model= load_model(vae_decoder, uncond_scale, device)
         # Create optimizer
         # Get device
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-        # Move the model to device
+        # Move models to device
         self.model.to(self.device)
 
         # Initialize [sampler](../sampler/index.html)
@@ -103,9 +96,7 @@ class LatentDiffusionModel:
         # Save images
         # save_images(images, dest_path, 'txt_')
 
-
-
-def load_model(clip_transformer, vae_decoder, scale, device):
+def load_model(vae_decoder, scale, device):
     """
     ### Load [`LatentDiffusion` model](latent_diffusion.html)
     """
@@ -123,19 +114,6 @@ def load_model(clip_transformer, vae_decoder, scale, device):
     for key, val in vae_checkpoint['net'].items():
         if 'decoder_input.' in key:
             vae_dict.update({key.split('decoder_input.')[1]: val})
-    clip_transformer.load_state_dict(clip_transformer_dict, strict=False)
-    with open('params.json') as file:
-        json_data = json.load(file)
-    vocab_size = json_data['vocab_size']
-    transformer_width = json_data['transformer_width']
-    embed_dim = json_data['embed_dim']
-    token_embedding = nn.Embedding(vocab_size, transformer_width)
-    token_embedding.weight.data = clip_checkpoint['net']['model.token_embedding.weight']
-    positional_embedding = nn.Parameter(clip_checkpoint['net']['model.positional_embedding'])
-    ln_final = LayerNorm(transformer_width)
-    ln_final.load_state_dict(clip_transformer_dict, strict=False)
-    text_projection = nn.Parameter(torch.empty(transformer_width, embed_dim))
-    text_projection.lo
 
     vae_decoder.load_state_dict(vae_dict)
     eps_model = UNetModel(in_channels=4,
@@ -145,10 +123,11 @@ def load_model(clip_transformer, vae_decoder, scale, device):
                           n_res_blocks=2,
                           channel_multipliers=[1, 2, 4, 4],
                           n_heads=8)
-    model = LatentDiffusion(unet_model=eps_model, vae_decoder=vae_decoder, clip_transformer=clip_transformer,
+    model = LatentDiffusion(unet_model=eps_model, vae_decoder=vae_decoder,
                             latent_scaling_factor=scale, n_steps=1000, linear_start=0.00085, linear_end=0.0120,
                             device=device)
 
     #
     model.eval()
     return model
+

@@ -17,7 +17,7 @@ if __name__ == '__main__':
     clip_model = CLIPModel(CFG).float()
     vae = VanillaVAE(CFG.in_channels, CFG.latent_dim)
     transform = clip_model.preprocess
-    triplet_train_loader, plain_train_loader, test_loader = \
+    triplet_train_loader, vae_train_loader, latent_train_loader, test_loader = \
         create_dataloader(CFG, train_dict, test_dict, transform)
     if CFG.stage == 'clip':
         clip_model = clip_model.to(CFG.device)
@@ -36,7 +36,7 @@ if __name__ == '__main__':
         if CFG.triplet:
             train_loader = triplet_train_loader
         else:
-            train_loader = plain_train_loader
+            train_loader = vae_train_loader
 
         num_batch = len(train_loader)
 
@@ -59,14 +59,29 @@ if __name__ == '__main__':
                 loss_meter.update(loss.item(), count)
                 pbar.set_description("Epoch %d Loss: %.2f" % (e, loss_meter.avg))
             lr_scheduler.step(loss_meter.avg)
-        print('-' * 30 + 'Saving CLIP Model' + '-' * 30)
-        state = {
-            'net': clip_model.state_dict(),
-            'epoch': e,
+        print('-' * 30 + 'Saving Text Embedding' + '-' * 30)
+        num_batch = len(vae_train_loader)
+        pbar = tqdm(enumerate(vae_train_loader), total=num_batch)
+        embeddings, texts, personids = [], [], []
+        clip_model.eval()
+        with torch.no_grad():
+            _, uncond_embedding = clip_model.model.encode_text([''])
+            for n_iter, (imgs, pids, captions) in pbar:
+                txts = clip.tokenize(captions, truncate=True).to(CFG.device)
+                _, embeding = clip_model.model.encode_text(txts)
+                embeddings.append(embeding.detach().cpu())
+                texts.append(captions)
+                personids.append(pids)
+
+        d = {
+            'embedings': torch.cat(embeddings, dim=0),
+            'personids': personids,
+            'texts': texts,
+             'uncond_embeddings': uncond_embedding
         }
         if not os.path.isdir('checkpoints'):
             os.mkdir('checkpoints')
-        torch.save(state, './checkpoints/' + CFG.stage + '.pt')
+        torch.save(d, './checkpoints/embedings.pt')
 
     elif CFG.stage == 'vae':
         vae = vae.to(CFG.device)
@@ -75,10 +90,10 @@ if __name__ == '__main__':
                                          foreach=None, capturable=False, differentiable=False, fused=False)
         print('-' * 30 + 'Training VAE Model' + '-' * 30)
         vae.train()
-        num_batch = len(plain_train_loader)
+        num_batch = len(vae_train_loader)
         for e in range(CFG.epochs):
             loss_meter = AvgMeter()
-            pbar = tqdm(enumerate(plain_train_loader), total=num_batch)
+            pbar = tqdm(enumerate(vae_train_loader), total=num_batch)
             for n_iter, (imgs, pids, captions) in pbar:
                 imgs = imgs.to(CFG.device)
                 results = vae(imgs)
@@ -99,15 +114,14 @@ if __name__ == '__main__':
 
     elif CFG.stage == 'latdiff':
         print('-' * 30 + 'Resuming from checkpoint' + '-' * 30)
-        clip_transformer = clip_model.model.transformer
         vae_decoder = vae.decoder_input
-        diffusion = LatentDiffusionModel(clip_transformer, vae_decoder, CFG.scale, device=CFG.device,
+        diffusion = LatentDiffusionModel(vae_decoder, CFG.scale, device=CFG.device,
                                          sampler_name=CFG.sampler_name, n_steps=CFG.steps)
         optimizer = torch.optim.Adam(diffusion.model.parameters(), lr=CFG.diff_lr)
         for e in range(CFG.epochs):
             loss_meter = AvgMeter()
-            num_batch = len(plain_train_loader)
-            pbar = tqdm(enumerate(plain_train_loader), total=num_batch)
+            num_batch = len(latent_train_loader)
+            pbar = tqdm(enumerate(latent_train_loader), total=num_batch)
             for n_iter, (imgs, pids, captions) in pbar:
                 optimizer.zero_grad()
                 # Generate data by VAE
@@ -116,7 +130,7 @@ if __name__ == '__main__':
                 # $\epsilon \sim \mathcal{N}(\mathbf{0}, \mathbf{I})$
                 noise = torch.randn_like(x0)
                 # Calculate loss
-                loss = diffusion.model.loss(x0, captions, noise)
+                loss = diffusion.model.loss(x0, embeding, noise)
                 # Compute gradients
                 loss.backward()
                 # Take an optimization step

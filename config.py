@@ -2,7 +2,7 @@ import torch
 
 
 class CFG(object):
-    stage = 'latdiff' # clip, vae, latdiff
+    stage = 'clip' # clip, vae, latdiff
     dataset = 'RSTPReid' # 'CUHK-PEDES', 'ICFG-PDES', 'RSTPReid'
     proj_path = '/home/honestws/codes/TextEdgeReID/'
     input_size = [256, 128]

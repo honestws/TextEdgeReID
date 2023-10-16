@@ -102,13 +102,6 @@ def load_model(vae_decoder, scale, device):
     """
 
     # Initialize the autoencoder
-    clip_checkpoint = torch.load('checkpoints/clip.pt')
-    clip_transformer_dict = OrderedDict()
-    for key, val in clip_checkpoint['net'].items():
-        if 'model.transformer.' in key:
-            clip_transformer_dict.update({key.split('model.transformer.')[1]: val})
-        if 'model.ln_final' in key:
-            clip_transformer_dict.update({key.split('model.')[1]: val})
     vae_checkpoint = torch.load('checkpoints/vae.pt')
     vae_dict = OrderedDict()
     for key, val in vae_checkpoint['net'].items():

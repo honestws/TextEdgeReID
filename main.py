@@ -14,7 +14,7 @@ from vae.model import VanillaVAE
 
 if __name__ == '__main__':
     train_dict, _, test_dict = dataparse(CFG)
-    clip_model = CLIPModel(CFG).float()
+    clip_model = CLIPModel(CFG)
     vae = VanillaVAE(CFG.in_channels, CFG.latent_dim)
     transform = clip_model.preprocess
     triplet_train_loader, vae_train_loader, test_loader = \
@@ -29,7 +29,7 @@ if __name__ == '__main__':
             ), "lr": CFG.head_lr, "weight_decay": CFG.weight_decay}
         ]
 
-        clip_optimizer = torch.optim.AdamW(params, weight_decay=0.)
+        clip_optimizer = torch.optim.Adam(params)
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             clip_optimizer, mode="min", patience=CFG.patience, factor=CFG.factor
         )
@@ -42,6 +42,8 @@ if __name__ == '__main__':
 
         clip_model.train()
         print('-'*30 + 'Training CLIP Model' + '-'*30)
+        scaler = amp.GradScaler()
+
         for e in range(CFG.epochs):
             number_cls = train_loader.number_cls
             loss_meter = AvgMeter()
@@ -49,27 +51,30 @@ if __name__ == '__main__':
             for n_iter, (imgs, pids, captions) in pbar:
                 imgs = imgs.to(CFG.device)
                 txts = clip.tokenize(captions, truncate=True).to(CFG.device)
+                clip_optimizer.zero_grad()
                 with amp.autocast():
                     ploss, sloss, tloss = clip_model(imgs, txts, pids)
-                loss = ploss + CFG.weight_sc * sloss + CFG.weight_tri * tloss
-                clip_optimizer.zero_grad()
-                loss.backward()
-                clip_optimizer.step()
+                    loss = ploss + CFG.weight_sc * sloss + CFG.weight_tri * tloss
+                    scaler.scale(loss).backward()
+                    scaler.step(clip_optimizer)
+                    scaler.update()
                 count = imgs.size(0)
                 loss_meter.update(loss.item(), count)
                 pbar.set_description("Epoch %d Loss: %.2f" % (e, loss_meter.avg))
             lr_scheduler.step(loss_meter.avg)
+
         print('-' * 30 + 'Saving Text Embedding' + '-' * 30)
         num_batch = len(vae_train_loader)
         pbar = tqdm(enumerate(vae_train_loader), total=num_batch)
         embeddings, texts, personids = [], [], []
         clip_model.eval()
         with torch.no_grad():
-            _, uncond_embedding = clip_model.model.encode_text([''])
+            txts = clip.tokenize(['']).to(CFG.device)
+            _, uncond_embedding = clip_model.model.encode_text(txts)
             for n_iter, (imgs, pids, captions) in pbar:
                 txts = clip.tokenize(captions, truncate=True).to(CFG.device)
                 _, embeding = clip_model.model.encode_text(txts)
-                embeddings.append(embeding)
+                embeddings.append(embeding.detach().cpu())
                 texts += captions
                 personids.append(pids)
 
@@ -77,7 +82,7 @@ if __name__ == '__main__':
             'embedings': torch.cat(embeddings, dim=0),
             'personids': torch.cat(personids, dim=0),
             'texts': texts,
-             'uncond_embedding': uncond_embedding
+             'uncond_embedding': uncond_embedding.detach().cpu()
         }
         if not os.path.isdir('checkpoints'):
             os.mkdir('checkpoints')
@@ -124,6 +129,7 @@ if __name__ == '__main__':
             num_batch = len(latent_train_loader)
             pbar = tqdm(enumerate(latent_train_loader), total=num_batch)
             for n_iter, (embeddings, pids, captions) in pbar:
+                embeddings = embeddings.to(CFG.device)
                 optimizer.zero_grad()
                 # Generate data by VAE decoder
                 noise = sample(len(captions), CFG.latent_dim, CFG.device)

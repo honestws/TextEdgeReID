@@ -141,7 +141,7 @@ class LatentDiffusion(nn.Module):
         # Sample $x_t$ for $q(x_t|x_0)$
         xt = self.q_sample(x0, t, eps=noise)
         # Unconditional embedding
-        un_cond = uncond_embedding.repeat(batch_size, 1)
+        un_cond = uncond_embedding.repeat(batch_size, 1, 1)
         # Get $\textcolor{lightgreen}{\epsilon_\theta}(\sqrt{\bar\alpha_t} x_0 + \sqrt{1-\bar\alpha_t}\epsilon, t)$
         eps_theta = self.get_eps(xt, t, embeddings,
                                    uncond_scale=self.latent_scaling_factor,

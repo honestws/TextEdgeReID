@@ -43,7 +43,7 @@ class TripletLoss(object):
 
 
 class SupConLoss(nn.Module):
-    def __init__(self, device):
+    def __init__(self, device=None):
         super(SupConLoss, self).__init__()
         self.device = device
         self.temperature = 1.0

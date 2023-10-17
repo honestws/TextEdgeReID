@@ -188,7 +188,7 @@ def server_dataloader(CFG):
     d = torch.load('./checkpoints/embedings.pt')
     latent_train_set = LatentDataset(d['texts'], d['personids'], d['embedings'])
     uncond_embedding = d['uncond_embedding'].to(CFG.device)
-    latent_train_loader = DataLoader(latent_train_set, batch_size=CFG.batch_size // 2,
+    latent_train_loader = DataLoader(latent_train_set, batch_size=CFG.batch_size // 8,
                                      shuffle=True, num_workers=CFG.num_workers,
                                      collate_fn=server_collate_fn)
     return latent_train_loader, uncond_embedding
